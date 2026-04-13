@@ -19,7 +19,10 @@
     <main>
       <!-- Voice Selection -->
       <div class="control-group">
-        <label for="voice-select">Voice</label>
+        <div class="label-row">
+          <label for="voice-select">Voice</label>
+          <button id="btn-toggle-add-voice" class="btn-small" type="button">Add Voice</button>
+        </div>
         <select id="voice-select">
           <optgroup label="Chinese Male">
             <option value="Junhao">Junhao</option>
@@ -46,6 +49,36 @@
             <option value="Mei">Mei</option>
           </optgroup>
         </select>
+      </div>
+
+      <div id="add-voice-panel" class="voice-upload-panel hidden">
+        <div class="control-group">
+          <label for="new-voice-name">Display Name</label>
+          <input id="new-voice-name" type="text" maxlength="80" placeholder="My Voice">
+        </div>
+        <div class="control-group">
+          <label for="new-voice-group-select">Group</label>
+          <select id="new-voice-group-select"></select>
+          <input
+            id="new-voice-group-custom"
+            class="group-custom-input hidden"
+            type="text"
+            maxlength="80"
+            placeholder="Create a new group"
+          >
+        </div>
+        <div class="control-group">
+          <label for="new-voice-file">Prompt Audio</label>
+          <input id="new-voice-file" type="file" accept=".wav,.mp3,.flac,.ogg,.m4a,audio/*">
+        </div>
+        <div class="voice-upload-actions">
+          <button id="btn-save-voice" class="btn-small btn-small-primary" type="button">Save Voice</button>
+          <button id="btn-cancel-add-voice" class="btn-small" type="button">Cancel</button>
+        </div>
+        <p class="settings-hint">
+          The server saves uploaded audio into `assets/audio`, appends it to `assets/voice_browser_metadata.json`,
+          generates an internal `voice` id automatically, and makes it available in the voice list immediately.
+        </p>
       </div>
 
       <!-- Playback Speed Control -->
@@ -81,7 +114,7 @@
           </div>
           <div class="control-group">
             <label for="cpu-threads">CPU Threads (0=auto)</label>
-            <input id="cpu-threads" type="number" min="0" step="1" value="0">
+            <input id="cpu-threads" type="number" min="0" step="1" value="4">
           </div>
           <div class="control-group">
             <label for="attn-implementation">Attention Backend</label>
@@ -97,7 +130,7 @@
           </div>
           <div class="control-group">
             <label for="tts-max-batch-size">Max TTS Batch Size (0=auto)</label>
-            <input id="tts-max-batch-size" type="number" min="0" step="1" value="0">
+            <input id="tts-max-batch-size" type="number" min="0" step="1" value="1">
           </div>
           <div class="control-group">
             <label for="codec-max-batch-size">Max Codec Batch Size (0=auto)</label>
@@ -105,12 +138,12 @@
           </div>
         </div>
         <p class="settings-hint">
-          0 keeps the current default behavior. Set Max TTS Batch Size to 1 to force split chunks to run one by one.
+          Max TTS Batch Size defaults to 1 in this build. Set it to 0 to re-enable auto batching.
           Buffered generation keeps chunk order and decodes codec sub-batches no larger than the current TTS batch.
           Realtime mode keeps output order and uses the smallest active chunk-group width among auto batching, Max TTS Batch Size, and Max Codec Batch Size.
         </p>
         <p class="settings-hint">
-          This app is CPU-only. CPU Threads maps to `torch.set_num_threads` for that request. 0 means auto and uses the server default thread count.
+          This app is CPU-only. CPU Threads maps to `torch.set_num_threads` for that request. It defaults to 4, and 0 means auto using the server default thread count.
         </p>
         <p class="settings-hint">
           CPU Attention Backend options are synchronized with the official CPU-only app: `model_default`, `sdpa`, and `eager`.

@@ -32,7 +32,7 @@ Nano Reader is a local browser reading application built on [MOSS-TTS-Nano](http
 
 ## Demo
 
-![Nano Reader demo](./images/demo.png)
+![Nano Reader demo](./assets/images/demo.jpg)
 
 - Online Demo: [https://openmoss.github.io/MOSS-TTS-Nano-Demo/](https://openmoss.github.io/MOSS-TTS-Nano-Demo/)
 - Hugging Face Space: [OpenMOSS-Team/MOSS-TTS-Nano](https://huggingface.co/spaces/OpenMOSS-Team/MOSS-TTS-Nano)
@@ -95,19 +95,44 @@ MOSS-TTS-Nano currently supports **20 languages**:
 
 ### Environment Setup
 
-We recommend a clean Python environment first, then installing the Nano Reader server dependencies locally. The default release layout expects the repository checkout and model snapshots to live inside the `pocket-reader` root.
+We recommend a clean Python environment first, then installing the Nano Reader server dependencies locally. The default release layout expects the repository checkout and model snapshots to live inside the `MOSS-TTS-Nano-Reader` root.
 
-#### Using Conda
+#### One-Command Installation
+
+Use this if you want the shortest setup path.
+
+```bash
+cd MOSS-TTS-Nano-Reader
+conda env create -f environment.yml
+conda activate nano-reader
+```
+
+This single command installs:
+
+- the editable local server package from `./server`
+- `pynini`
+- `WeTextProcessing`
+
+If you later update `environment.yml`, refresh the environment with:
+
+```bash
+cd MOSS-TTS-Nano-Reader
+conda env update -f environment.yml --prune
+```
+
+#### Step-by-Step Installation
+
+Use this if you prefer to install each dependency manually or need to troubleshoot one part at a time.
 
 ```bash
 conda create -n nano-reader python=3.12 -y
 conda activate nano-reader
 
-cd pocket-reader/server
+cd MOSS-TTS-Nano-Reader/server
 pip install -e .
 ```
 
-If `WeTextProcessing` is needed for the popup normalization switches and fails to install directly, try installing it manually in the same environment:
+If `WeTextProcessing` is needed for the popup normalization switches and fails to install directly, install its extra dependencies in the same environment:
 
 ```bash
 conda install -c conda-forge pynini=2.1.6.post1 -y
@@ -118,14 +143,14 @@ pip install git+https://github.com/WhizZest/WeTextProcessing.git
 
 Nano Reader defaults to the following fixed layout:
 
-- Nano-TTS repo: `pocket-reader/MOSS-TTS-Nano`
-- Checkpoint: `pocket-reader/models/MOSS-TTS-Nano`
-- Audio tokenizer: `pocket-reader/models/MOSS-Audio-Tokenizer-Nano`
+- Nano-TTS repo: `MOSS-TTS-Nano-Reader/MOSS-TTS-Nano`
+- Checkpoint: `MOSS-TTS-Nano-Reader/models/MOSS-TTS-Nano`
+- Audio tokenizer: `MOSS-TTS-Nano-Reader/models/MOSS-Audio-Tokenizer-Nano`
 
 Clone the official Nano-TTS repository into the project root:
 
 ```bash
-cd pocket-reader
+cd MOSS-TTS-Nano-Reader
 git clone https://github.com/OpenMOSS/MOSS-TTS-Nano.git
 ```
 
@@ -144,7 +169,7 @@ If you prefer custom paths, you can still override the defaults with CLI argumen
 Run the local Flask server from the `server` directory:
 
 ```bash
-cd pocket-reader/server
+cd MOSS-TTS-Nano-Reader/server
 python server.py
 ```
 
@@ -181,7 +206,7 @@ python server.py
 1. Open Chrome and go to `chrome://extensions/`
 2. Enable `Developer mode`
 3. Click `Load unpacked`
-4. Select the `pocket-reader/extension` folder
+4. Select the `MOSS-TTS-Nano-Reader/extension` folder
 5. Reload the extension after frontend changes so popup UI updates take effect
 
 ### Read A Page In The Browser

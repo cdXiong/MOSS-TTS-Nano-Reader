@@ -16,6 +16,8 @@ import os
 import re
 import sys
 import threading
+import unicodedata
+import uuid
 import wave
 from pathlib import Path
 from typing import Callable, Iterator, TypeVar
@@ -33,6 +35,8 @@ DEFAULT_LOCAL_CHECKPOINT_PATH = (DEFAULT_MODELS_DIR / "MOSS-TTS-Nano").resolve()
 DEFAULT_LOCAL_AUDIO_TOKENIZER_PATH = (DEFAULT_MODELS_DIR / "MOSS-Audio-Tokenizer-Nano").resolve()
 LOCAL_VOICE_ASSETS_DIR = POCKET_READER_DIR / "assets" / "audio"
 VOICE_BROWSER_METADATA_PATH = POCKET_READER_DIR / "assets" / "voice_browser_metadata.json"
+VOICE_METADATA_LOCK = threading.Lock()
+ALLOWED_LOCAL_VOICE_AUDIO_SUFFIXES = {".wav", ".mp3", ".flac", ".ogg", ".m4a"}
 
 
 def _read_cli_option(flag_names: tuple[str, ...]) -> str | None:
@@ -139,6 +143,8 @@ DTYPE = os.getenv("NANO_TTS_DTYPE", "auto")
 ATTN_IMPLEMENTATION = os.getenv("NANO_TTS_ATTN_IMPLEMENTATION", "auto")
 MAX_NEW_FRAMES = int(os.getenv("NANO_TTS_MAX_NEW_FRAMES", "375"))
 VOICE_CLONE_MAX_TEXT_TOKENS = int(os.getenv("NANO_TTS_VOICE_CLONE_MAX_TEXT_TOKENS", "100"))
+DEFAULT_CPU_THREADS = int(os.getenv("NANO_TTS_DEFAULT_CPU_THREADS", "4"))
+DEFAULT_TTS_MAX_BATCH_SIZE = int(os.getenv("NANO_TTS_DEFAULT_TTS_MAX_BATCH_SIZE", "1"))
 STREAM_AUDIO_SAMPLE_RATE = int(os.getenv("NANO_TTS_STREAM_SAMPLE_RATE", "48000"))
 STREAM_AUDIO_CHANNELS = int(os.getenv("NANO_TTS_STREAM_CHANNELS", "2"))
 DEFAULT_ENABLE_TEXT_NORMALIZATION = os.getenv("NANO_TTS_ENABLE_TEXT_NORMALIZATION", "1")
@@ -189,7 +195,7 @@ def get_runtime() -> NanoTTSService:
 class RequestRuntimeManager:
     def __init__(self, default_runtime: NanoTTSService) -> None:
         self.default_runtime = default_runtime
-        self.default_cpu_threads = max(1, int(os.cpu_count() or 1))
+        self.default_cpu_threads = max(1, DEFAULT_CPU_THREADS)
         self._lock = threading.Lock()
         self._cpu_execution_lock = threading.Lock()
         self._cpu_runtime: NanoTTSService | None = None
@@ -201,6 +207,12 @@ class RequestRuntimeManager:
     def is_cpu_runtime_loaded(self) -> bool:
         with self._lock:
             return self._cpu_runtime is not None
+
+    def refresh_voice_presets(self, voice_presets: dict[str, VoicePreset]) -> None:
+        with self._lock:
+            _replace_runtime_voice_presets(self.default_runtime, voice_presets)
+            if self._cpu_runtime is not None and self._cpu_runtime.voice_presets is not self.default_runtime.voice_presets:
+                _replace_runtime_voice_presets(self._cpu_runtime, voice_presets)
 
     def _build_cpu_runtime_locked(self) -> NanoTTSService:
         if self._cpu_runtime is not None:
@@ -307,6 +319,42 @@ def _sanitize_demo_voice_name(raw_name: object, fallback: str) -> str:
     return cleaned or fallback
 
 
+def _normalize_metadata_text(value: object) -> str:
+    return re.sub(r"\s+", " ", str(value or "").strip())
+
+
+def _normalize_uploaded_display_name(value: object) -> str:
+    cleaned = _normalize_metadata_text(value)
+    if not cleaned:
+        raise ValueError("Display name is required.")
+    if len(cleaned) > 80:
+        raise ValueError("Display name must be 80 characters or fewer.")
+    return cleaned
+
+
+def _normalize_uploaded_voice_group(value: object) -> str:
+    cleaned = _normalize_metadata_text(value)
+    if not cleaned:
+        raise ValueError("Group is required.")
+    if len(cleaned) > 80:
+        raise ValueError("Group must be 80 characters or fewer.")
+    return cleaned
+
+
+def _normalize_browser_metadata_row(row: object) -> dict[str, str] | None:
+    if not isinstance(row, dict):
+        return None
+    voice_name = _normalize_metadata_text(row.get("voice"))
+    if not voice_name:
+        return None
+    return {
+        "voice": voice_name,
+        "display_name": _normalize_metadata_text(row.get("display_name")) or voice_name,
+        "group": _normalize_metadata_text(row.get("group")),
+        "audio_file": Path(str(row.get("audio_file") or "")).name.strip(),
+    }
+
+
 def load_voice_browser_metadata() -> list[dict[str, str]]:
     if not VOICE_BROWSER_METADATA_PATH.is_file():
         return []
@@ -322,22 +370,99 @@ def load_voice_browser_metadata() -> list[dict[str, str]]:
         return []
 
     result: list[dict[str, str]] = []
+    seen_voice_names: set[str] = set()
     for row in payload:
-        if not isinstance(row, dict):
+        normalized_row = _normalize_browser_metadata_row(row)
+        if normalized_row is None:
             continue
-        voice_name = str(row.get("voice") or "").strip()
-        if not voice_name:
+        voice_key = normalized_row["voice"].casefold()
+        if voice_key in seen_voice_names:
+            logging.warning("Skipping duplicate browser voice metadata entry: %s", normalized_row["voice"])
             continue
-        result.append(
-            {
-                "voice": voice_name,
-                "display_name": str(row.get("display_name") or voice_name).strip() or voice_name,
-                "group": str(row.get("group") or "").strip(),
-                "audio_file": str(row.get("audio_file") or "").strip(),
-                "description": str(row.get("description") or "").strip(),
-            }
-        )
+        seen_voice_names.add(voice_key)
+        result.append(normalized_row)
     return result
+
+
+def save_voice_browser_metadata(rows: list[dict[str, str]]) -> None:
+    normalized_rows = [normalized_row for row in rows if (normalized_row := _normalize_browser_metadata_row(row)) is not None]
+    VOICE_BROWSER_METADATA_PATH.parent.mkdir(parents=True, exist_ok=True)
+    VOICE_BROWSER_METADATA_PATH.write_text(
+        json.dumps(normalized_rows, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+
+def list_voice_groups(rows: list[dict[str, str]] | None = None) -> list[str]:
+    groups: list[str] = []
+    for row in rows if rows is not None else load_voice_browser_metadata():
+        group_name = _normalize_metadata_text(row.get("group"))
+        if group_name and group_name not in groups:
+            groups.append(group_name)
+    return groups
+
+
+def _resolve_uploaded_voice_audio_suffix(filename: str | None) -> str:
+    suffix = Path(str(filename or "")).suffix.lower().strip()
+    if suffix in ALLOWED_LOCAL_VOICE_AUDIO_SUFFIXES:
+        return suffix
+    raise ValueError(
+        "Audio file must use one of: " + ", ".join(sorted(ALLOWED_LOCAL_VOICE_AUDIO_SUFFIXES))
+    )
+
+
+def _build_uploaded_voice_audio_filename(voice_name: str, suffix: str) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "-", voice_name.casefold()).strip("-")
+    if not slug:
+        slug = "voice"
+    return f"{slug}-{uuid.uuid4().hex[:8]}{suffix}"
+
+
+def _slugify_voice_id_base(display_name: str) -> str:
+    normalized = unicodedata.normalize("NFKD", display_name)
+    ascii_text = normalized.encode("ascii", "ignore").decode("ascii")
+    slug = re.sub(r"[^a-z0-9]+", "-", ascii_text.casefold()).strip("-")
+    return slug or "voice"
+
+
+def _build_unique_voice_id(display_name: str, existing_voice_ids: set[str]) -> str:
+    base_slug = _slugify_voice_id_base(display_name)
+    normalized_existing_ids = {voice_id.casefold() for voice_id in existing_voice_ids}
+    suffix = 1
+    while True:
+        candidate = f"{base_slug}-{suffix:03d}"
+        if candidate.casefold() not in normalized_existing_ids:
+            return candidate
+        suffix += 1
+
+
+def _persist_uploaded_voice_audio(uploaded_file, *, voice_name: str) -> Path:
+    if uploaded_file is None:
+        raise ValueError("Audio file is required.")
+    suffix = _resolve_uploaded_voice_audio_suffix(getattr(uploaded_file, "filename", None))
+    LOCAL_VOICE_ASSETS_DIR.mkdir(parents=True, exist_ok=True)
+    target_path = (LOCAL_VOICE_ASSETS_DIR / _build_uploaded_voice_audio_filename(voice_name, suffix)).resolve()
+    if target_path.parent != LOCAL_VOICE_ASSETS_DIR.resolve():
+        raise ValueError("Invalid audio target path.")
+    uploaded_file.save(str(target_path))
+    if not target_path.is_file() or target_path.stat().st_size <= 0:
+        _maybe_delete_generated_file(str(target_path))
+        raise ValueError("Uploaded audio file is empty.")
+    return target_path
+
+
+def _replace_runtime_voice_presets(runtime: NanoTTSService, voice_presets: dict[str, VoicePreset]) -> None:
+    runtime.voice_presets.clear()
+    runtime.voice_presets.update(voice_presets)
+    runtime.default_voice = DEFAULT_VOICE if DEFAULT_VOICE in runtime.voice_presets else next(iter(runtime.voice_presets))
+
+
+def refresh_runtime_voice_presets() -> None:
+    voice_presets = build_pocket_reader_voice_presets()
+    runtime = get_runtime()
+    _replace_runtime_voice_presets(runtime, voice_presets)
+    if _runtime_manager is not None:
+        _runtime_manager.refresh_voice_presets(voice_presets)
 
 
 def build_pocket_reader_voice_presets() -> dict[str, VoicePreset]:
@@ -345,16 +470,16 @@ def build_pocket_reader_voice_presets() -> dict[str, VoicePreset]:
     for row in load_voice_browser_metadata():
         voice_name = row["voice"]
         audio_file = row["audio_file"]
-        if voice_name not in presets or not audio_file:
+        if not audio_file:
             continue
         local_prompt_audio_path = (LOCAL_VOICE_ASSETS_DIR / audio_file).resolve()
         if not local_prompt_audio_path.is_file():
             continue
-        existing_preset = presets[voice_name]
+        existing_preset = presets.get(voice_name)
         presets[voice_name] = VoicePreset(
-            name=existing_preset.name,
+            name=voice_name,
             prompt_audio_path=local_prompt_audio_path,
-            description=existing_preset.description,
+            description=existing_preset.description if existing_preset is not None else f"Browser voice preset: {voice_name}",
         )
 
     existing_prompt_file_names = {preset.prompt_audio_path.name for preset in presets.values()}
@@ -663,10 +788,10 @@ def _build_runtime_kwargs(data: dict, text: str, voice: str) -> dict[str, object
         "voice_clone_max_text_tokens": int(
             data.get("voice_clone_max_text_tokens", VOICE_CLONE_MAX_TEXT_TOKENS)
         ),
-        "tts_max_batch_size": int(data.get("tts_max_batch_size", 0)),
+        "tts_max_batch_size": int(data.get("tts_max_batch_size", DEFAULT_TTS_MAX_BATCH_SIZE)),
         "codec_max_batch_size": int(data.get("codec_max_batch_size", 0)),
         "execution_device": _normalize_execution_device(data.get("execution_device", "default")),
-        "cpu_threads": _coerce_int(data.get("cpu_threads", 0), 0),
+        "cpu_threads": _coerce_int(data.get("cpu_threads", DEFAULT_CPU_THREADS), DEFAULT_CPU_THREADS),
         "attn_implementation": _normalize_attn_implementation(data.get("attn_implementation", "model_default")),
         "do_sample": _coerce_bool(data.get("do_sample"), True),
         "text_temperature": float(data.get("text_temperature", 1.0)),
@@ -771,8 +896,59 @@ def list_voices():
             "default": runtime.default_voice,
             "engine": "nano-tts",
             "voice_metadata": browser_metadata_rows,
+            "voice_groups": list_voice_groups(browser_metadata_rows),
         }
     )
+
+
+@app.route("/voices", methods=["POST"])
+def create_voice():
+    saved_audio_path: Path | None = None
+    try:
+        display_name = _normalize_uploaded_display_name(request.form.get("name"))
+        group_name = _normalize_uploaded_voice_group(request.form.get("group"))
+        uploaded_audio = request.files.get("audio")
+        with VOICE_METADATA_LOCK:
+            existing_rows = load_voice_browser_metadata()
+            existing_voice_ids = set(build_pocket_reader_voice_presets().keys())
+            existing_display_names = {
+                str(row.get("display_name") or row["voice"]).casefold()
+                for row in existing_rows
+            }
+            if display_name.casefold() in existing_display_names:
+                return jsonify({"error": f"Display name '{display_name}' already exists."}), 409
+
+            voice_id = _build_unique_voice_id(display_name, existing_voice_ids)
+
+            saved_audio_path = _persist_uploaded_voice_audio(uploaded_audio, voice_name=voice_id)
+            new_row = {
+                "voice": voice_id,
+                "display_name": display_name,
+                "group": group_name,
+                "audio_file": saved_audio_path.name,
+            }
+            try:
+                updated_rows = [*existing_rows, new_row]
+                save_voice_browser_metadata(updated_rows)
+                refresh_runtime_voice_presets()
+            except Exception:
+                _maybe_delete_generated_file(str(saved_audio_path))
+                raise
+
+        runtime = get_runtime()
+        return jsonify(
+            {
+                "voice": new_row,
+                "voices": runtime.list_voice_names(),
+                "voice_groups": list_voice_groups(updated_rows),
+                "default": runtime.default_voice,
+            }
+        )
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except Exception as exc:
+        logging.exception("Failed to save uploaded browser voice")
+        return jsonify({"error": str(exc)}), 500
 
 
 @app.route("/text-normalization-status", methods=["GET"])

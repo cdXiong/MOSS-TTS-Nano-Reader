@@ -8,6 +8,14 @@ const SERVER_URL = 'http://localhost:5050';
 // DOM Elements
 const serverStatus = document.getElementById('server-status');
 const voiceSelect = document.getElementById('voice-select');
+const btnToggleAddVoice = document.getElementById('btn-toggle-add-voice');
+const addVoicePanel = document.getElementById('add-voice-panel');
+const newVoiceNameInput = document.getElementById('new-voice-name');
+const newVoiceGroupSelect = document.getElementById('new-voice-group-select');
+const newVoiceGroupCustomInput = document.getElementById('new-voice-group-custom');
+const newVoiceFileInput = document.getElementById('new-voice-file');
+const btnSaveVoice = document.getElementById('btn-save-voice');
+const btnCancelAddVoice = document.getElementById('btn-cancel-add-voice');
 const playbackSpeedGroup = document.getElementById('playback-speed-group');
 const speedControl = document.getElementById('speed-control');
 const speedValue = document.getElementById('speed-value');
@@ -32,6 +40,7 @@ const attnImplementationSelect = document.getElementById('attn-implementation');
 const voiceCloneMaxTextTokensInput = document.getElementById('voice-clone-max-text-tokens');
 const ttsMaxBatchSizeInput = document.getElementById('tts-max-batch-size');
 const codecMaxBatchSizeInput = document.getElementById('codec-max-batch-size');
+const CUSTOM_GROUP_OPTION = '__custom__';
 
 const DEFAULT_TTS_SETTINGS = {
   realtimeStreamingDecode: true,
@@ -39,10 +48,10 @@ const DEFAULT_TTS_SETTINGS = {
   enableNormalizeTtsText: true,
   initialPlaybackDelaySeconds: 0.08,
   executionDevice: 'cpu',
-  cpuThreads: 0,
+  cpuThreads: 4,
   attnImplementation: 'model_default',
   voiceCloneMaxTextTokens: 75,
-  ttsMaxBatchSize: 0,
+  ttsMaxBatchSize: 1,
   codecMaxBatchSize: 0
 };
 
@@ -52,6 +61,7 @@ let isPaused = false;
 let serverConnected = false;
 let currentTabId = null;
 let scannedParagraphs = [];
+let availableVoiceGroups = [];
 
 const FALLBACK_VOICE_GROUPS = [
   {
@@ -72,6 +82,20 @@ const FALLBACK_VOICE_GROUPS = [
   }
 ];
 
+function getFallbackVoiceGroups() {
+  return FALLBACK_VOICE_GROUPS.map(({ label }) => label);
+}
+
+function uniqueNonEmptyStrings(values = []) {
+  const result = [];
+  for (const value of values) {
+    const normalized = String(value || '').trim();
+    if (!normalized || result.includes(normalized)) continue;
+    result.push(normalized);
+  }
+  return result;
+}
+
 /**
  * Initialize popup
  */
@@ -90,6 +114,10 @@ async function init() {
 
   // Set up event listeners
   voiceSelect.addEventListener('change', saveVoicePreference);
+  btnToggleAddVoice.addEventListener('click', toggleAddVoicePanel);
+  newVoiceGroupSelect.addEventListener('change', handleVoiceGroupSelectionChange);
+  btnSaveVoice.addEventListener('click', handleSaveVoice);
+  btnCancelAddVoice.addEventListener('click', closeAddVoicePanel);
   speedControl.addEventListener('input', handleSpeedChange);
   realtimeStreamingDecodeToggle.addEventListener('change', handleRealtimeStreamingDecodeChange);
   enableWeTextProcessingToggle.addEventListener('change', saveTtsSettings);
@@ -136,6 +164,7 @@ async function checkServerStatus() {
       serverConnected = true;
       btnRead.disabled = false;
       btnScan.disabled = false;
+      btnToggleAddVoice.disabled = false;
     } else {
       throw new Error('Server returned error');
     }
@@ -144,6 +173,10 @@ async function checkServerStatus() {
     serverConnected = false;
     btnRead.disabled = true;
     btnScan.disabled = true;
+    btnToggleAddVoice.disabled = true;
+    if (!addVoicePanel.classList.contains('hidden')) {
+      closeAddVoicePanel();
+    }
     showMessage('error', 'Server not running. Start it with: python server.py');
   }
 }
@@ -200,6 +233,75 @@ function renderVoiceOptions(voices, preferredVoice, voiceMetadataRows = []) {
   return selectedVoice;
 }
 
+function renderVoiceGroupOptions(groups = availableVoiceGroups, preferredGroup = '') {
+  const candidateGroups = uniqueNonEmptyStrings(groups);
+  availableVoiceGroups = candidateGroups.length > 0 ? candidateGroups : getFallbackVoiceGroups();
+  const customGroup = preferredGroup && !availableVoiceGroups.includes(preferredGroup) ? preferredGroup : '';
+  const selectedValue = customGroup ? CUSTOM_GROUP_OPTION : (preferredGroup || availableVoiceGroups[0] || CUSTOM_GROUP_OPTION);
+
+  newVoiceGroupSelect.innerHTML = '';
+  for (const groupLabel of availableVoiceGroups) {
+    const option = document.createElement('option');
+    option.value = groupLabel;
+    option.textContent = groupLabel;
+    newVoiceGroupSelect.appendChild(option);
+  }
+
+  const customOption = document.createElement('option');
+  customOption.value = CUSTOM_GROUP_OPTION;
+  customOption.textContent = 'Custom...';
+  newVoiceGroupSelect.appendChild(customOption);
+  newVoiceGroupSelect.value = selectedValue;
+  newVoiceGroupCustomInput.value = customGroup;
+  handleVoiceGroupSelectionChange();
+}
+
+function handleVoiceGroupSelectionChange() {
+  const isCustom = newVoiceGroupSelect.value === CUSTOM_GROUP_OPTION;
+  newVoiceGroupCustomInput.classList.toggle('hidden', !isCustom);
+  if (!isCustom) {
+    newVoiceGroupCustomInput.value = '';
+  }
+}
+
+function resetAddVoiceForm() {
+  newVoiceNameInput.value = '';
+  newVoiceFileInput.value = '';
+  renderVoiceGroupOptions(availableVoiceGroups);
+}
+
+function openAddVoicePanel() {
+  if (!serverConnected) {
+    showMessage('error', 'Server not connected');
+    return;
+  }
+  renderVoiceGroupOptions(availableVoiceGroups);
+  addVoicePanel.classList.remove('hidden');
+  btnToggleAddVoice.textContent = 'Hide Add Voice';
+  newVoiceNameInput.focus();
+}
+
+function closeAddVoicePanel() {
+  addVoicePanel.classList.add('hidden');
+  btnToggleAddVoice.textContent = 'Add Voice';
+  resetAddVoiceForm();
+}
+
+function toggleAddVoicePanel() {
+  if (addVoicePanel.classList.contains('hidden')) {
+    openAddVoicePanel();
+  } else {
+    closeAddVoicePanel();
+  }
+}
+
+function getSelectedVoiceGroup() {
+  const rawGroup = newVoiceGroupSelect.value === CUSTOM_GROUP_OPTION
+    ? newVoiceGroupCustomInput.value
+    : newVoiceGroupSelect.value;
+  return rawGroup.replace(/\s+/g, ' ').trim();
+}
+
 async function populateVoiceOptions(savedVoice) {
   let availableVoices = [];
   let defaultVoice = 'Junhao';
@@ -216,6 +318,9 @@ async function populateVoiceOptions(savedVoice) {
         availableVoices = Array.isArray(data.voices) ? data.voices : [];
         defaultVoice = data.default || defaultVoice;
         voiceMetadataRows = Array.isArray(data.voice_metadata) ? data.voice_metadata : [];
+        availableVoiceGroups = uniqueNonEmptyStrings(
+          Array.isArray(data.voice_groups) ? data.voice_groups : voiceMetadataRows.map((row) => row.group)
+        );
       }
     } catch (error) {
       console.warn('Failed to fetch voices from server:', error);
@@ -225,8 +330,12 @@ async function populateVoiceOptions(savedVoice) {
   if (availableVoices.length === 0) {
     availableVoices = Array.from(voiceSelect.querySelectorAll('option')).map((option) => option.value);
   }
+  if (availableVoiceGroups.length === 0) {
+    availableVoiceGroups = getFallbackVoiceGroups();
+  }
 
   const effectiveVoice = renderVoiceOptions(availableVoices, savedVoice || defaultVoice, voiceMetadataRows);
+  renderVoiceGroupOptions(availableVoiceGroups);
   if (effectiveVoice) {
     chrome.storage.local.set({ voice: effectiveVoice });
   }
@@ -245,6 +354,77 @@ function setServerStatus(status, text) {
  */
 function saveVoicePreference() {
   chrome.storage.local.set({ voice: voiceSelect.value });
+}
+
+async function handleSaveVoice() {
+  if (!serverConnected) {
+    showMessage('error', 'Server not connected');
+    return;
+  }
+
+  const voiceName = newVoiceNameInput.value.replace(/\s+/g, ' ').trim();
+  const groupName = getSelectedVoiceGroup();
+  const uploadedFile = newVoiceFileInput.files?.[0];
+
+  if (!voiceName) {
+    showMessage('error', 'Display name is required');
+    newVoiceNameInput.focus();
+    return;
+  }
+  if (!groupName) {
+    showMessage('error', 'Group is required');
+    if (newVoiceGroupSelect.value === CUSTOM_GROUP_OPTION) {
+      newVoiceGroupCustomInput.focus();
+    } else {
+      newVoiceGroupSelect.focus();
+    }
+    return;
+  }
+  if (!uploadedFile || uploadedFile.size <= 0) {
+    showMessage('error', 'Prompt audio file is required');
+    newVoiceFileInput.focus();
+    return;
+  }
+
+  const originalButtonText = btnSaveVoice.textContent;
+  btnSaveVoice.disabled = true;
+  btnCancelAddVoice.disabled = true;
+  btnToggleAddVoice.disabled = true;
+  btnSaveVoice.textContent = 'Saving...';
+
+  try {
+    const formData = new FormData();
+    formData.append('name', voiceName);
+    formData.append('group', groupName);
+    formData.append('audio', uploadedFile);
+
+    const response = await fetch(`${SERVER_URL}/voices`, {
+      method: 'POST',
+      body: formData,
+      signal: AbortSignal.timeout(20000)
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload.error || 'Failed to save voice');
+    }
+
+    availableVoiceGroups = uniqueNonEmptyStrings(payload.voice_groups);
+    await populateVoiceOptions(payload.voice?.voice || voiceName);
+    if (payload.voice?.voice) {
+      voiceSelect.value = payload.voice.voice;
+      saveVoicePreference();
+    }
+    closeAddVoicePanel();
+    showMessage('success', `Saved voice "${payload.voice?.display_name || voiceName}"`);
+  } catch (error) {
+    console.error('Save voice error:', error);
+    showMessage('error', error.message || 'Failed to save voice');
+  } finally {
+    btnSaveVoice.disabled = false;
+    btnCancelAddVoice.disabled = false;
+    btnToggleAddVoice.disabled = !serverConnected;
+    btnSaveVoice.textContent = originalButtonText;
+  }
 }
 
 function normalizeTtsSettings(rawSettings = {}) {

@@ -30,10 +30,10 @@ const DEFAULT_TTS_SETTINGS = {
   enableNormalizeTtsText: true,
   initialPlaybackDelaySeconds: 0.08,
   executionDevice: 'cpu',
-  cpuThreads: 0,
+  cpuThreads: 4,
   attnImplementation: 'model_default',
   voiceCloneMaxTextTokens: 75,
-  ttsMaxBatchSize: 0,
+  ttsMaxBatchSize: 1,
   codecMaxBatchSize: 0
 };
 

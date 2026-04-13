@@ -32,7 +32,7 @@ Nano Reader 是一个基于 [MOSS-TTS-Nano](https://github.com/OpenMOSS/MOSS-TTS
 
 ## 演示
 
-![Nano Reader demo](./images/demo.png)
+![Nano Reader demo](./assets/images/demo.jpg)
 
 - 在线演示：[https://openmoss.github.io/MOSS-TTS-Nano-Demo/](https://openmoss.github.io/MOSS-TTS-Nano-Demo/)
 - Hugging Face Space：[OpenMOSS-Team/MOSS-TTS-Nano](https://huggingface.co/spaces/OpenMOSS-Team/MOSS-TTS-Nano)
@@ -95,19 +95,43 @@ MOSS-TTS-Nano 目前支持 **20 种语言**：
 
 ### 环境配置
 
-建议先创建一个干净的 Python 环境，再安装 Nano Reader 服务端依赖。发布版默认目录结构要求模型仓库和权重都位于 `pocket-reader` 根目录下。
+建议先创建一个干净的 Python 环境，再安装 Nano Reader 服务端依赖。发布版默认目录结构要求模型仓库和权重都位于 `MOSS-TTS-Nano-Reader` 根目录下。
 
-#### 使用 Conda
+#### 一键安装
+
+如果你希望用最短路径把环境装好，推荐使用这一种。
+
+```bash
+cd MOSS-TTS-Nano-Reader
+conda env create -f environment.yml
+conda activate nano-reader
+```
+
+这条命令会一次性安装：
+
+- `./server` 下的本地可编辑服务端包
+- `pynini`
+- `WeTextProcessing`
+
+如果后续更新了 `environment.yml`，可以用下面的命令同步环境：
+
+```bash
+conda env update -f environment.yml --prune
+```
+
+#### 分步安装
+
+如果你希望逐步安装、或者排查某一项依赖问题，可以使用这种方式。
 
 ```bash
 conda create -n nano-reader python=3.12 -y
 conda activate nano-reader
 
-cd pocket-reader/server
+cd MOSS-TTS-Nano-Reader/server
 pip install -e .
 ```
 
-如果你需要让弹窗中的文本规范化开关生效，而 `WeTextProcessing` 无法直接安装，可以在同一环境中手动安装：
+如果你需要让弹窗中的文本规范化开关生效，而 `WeTextProcessing` 无法直接安装，可以在同一环境中继续手动安装下面这两项：
 
 ```bash
 conda install -c conda-forge pynini=2.1.6.post1 -y
@@ -118,14 +142,14 @@ pip install git+https://github.com/WhizZest/WeTextProcessing.git
 
 Nano Reader 默认使用以下固定目录布局：
 
-- Nano-TTS 仓库：`pocket-reader/MOSS-TTS-Nano`
-- Checkpoint：`pocket-reader/models/MOSS-TTS-Nano`
-- Audio tokenizer：`pocket-reader/models/MOSS-Audio-Tokenizer-Nano`
+- Nano-TTS 仓库：`MOSS-TTS-Nano-Reader/MOSS-TTS-Nano`
+- Checkpoint：`MOSS-TTS-Nano-Reader/models/MOSS-TTS-Nano`
+- Audio tokenizer：`MOSS-TTS-Nano-Reader/models/MOSS-Audio-Tokenizer-Nano`
 
 先把官方 Nano-TTS 仓库克隆到项目根目录：
 
 ```bash
-cd pocket-reader
+cd MOSS-TTS-Nano-Reader
 git clone https://github.com/OpenMOSS/MOSS-TTS-Nano.git
 ```
 
@@ -144,7 +168,7 @@ huggingface-cli download OpenMOSS-Team/MOSS-Audio-Tokenizer-Nano --local-dir mod
 在 `server` 目录下运行本地 Flask 服务：
 
 ```bash
-cd pocket-reader/server
+cd server
 python server.py
 ```
 
@@ -181,7 +205,7 @@ python server.py
 1. 打开 Chrome，进入 `chrome://extensions/`
 2. 打开 `Developer mode`（开发者模式）
 3. 点击 `Load unpacked`（加载已解压的扩展程序）
-4. 选择 `pocket-reader/extension` 文件夹
+4. 选择 `MOSS-TTS-Nano-Reader/extension` 文件夹
 5. 如果前端改过代码，记得重新加载扩展以刷新弹窗 UI
 
 ### 在浏览器中朗读页面
