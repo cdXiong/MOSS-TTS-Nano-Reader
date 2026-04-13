@@ -23,7 +23,7 @@
 
 [English](README.md) | [简体中文](README_zh.md)
 
-MOSS-TTS-Nano Reader 是一个基于 [MOSS-TTS-Nano](https://github.com/OpenMOSS/MOSS-TTS-Nano) 的本地浏览器朗读应用。它将 Chrome 扩展、本地 Flask 服务、音色元数据映射和适合 CPU 的流式推理组合在一起，让网页内容可以直接在本机被朗读出来。
+MOSS-TTS-Nano Reader 是一个基于 [MOSS-TTS-Nano](https://github.com/OpenMOSS/MOSS-TTS-Nano) 的本地浏览器网页朗读应用。
 
 ## 新闻
 
@@ -45,11 +45,13 @@ MOSS-TTS-Nano Reader 是一个基于 [MOSS-TTS-Nano](https://github.com/OpenMOSS
   - [主要特性](#主要特性)
 - [支持的语言](#支持的语言)
 - [快速开始](#快速开始)
+  - [获取仓库](#获取仓库)
   - [环境配置](#环境配置)
   - [准备项目目录布局](#准备项目目录布局)
   - [启动本地 Nano Reader 服务](#启动本地-nano-reader-服务)
   - [加载 Chrome 扩展](#加载-chrome-扩展)
   - [在浏览器中朗读页面](#在浏览器中朗读页面)
+- [使用说明](#使用说明)
 - [致谢](#致谢)
 - [MOSS-Audio-Tokenizer-Nano](#moss-audio-tokenizer-nano)
 - [许可证](#许可证)
@@ -61,21 +63,14 @@ MOSS-TTS-Nano Reader 是一个基于 [MOSS-TTS-Nano](https://github.com/OpenMOSS
   <img src="./assets/images/concept.png" alt="MOSS-TTS-Nano concept" width="85%" />
 </p>
 
-MOSS-TTS-Nano 专注于 TTS 部署中最重要的部分：**小体积**、**低延迟**、**足够好的实时产品质量** 和 **简单的本地配置**。它使用纯自回归 **Audio Tokenizer + LLM** 管道，并保持推理工作流对终端用户和网络演示用户都友好。
-
-Nano Reader 将这套运行时封装成了面向浏览器的朗读工作流。项目在其上增加了本地 Flask 服务、Chrome 扩展控制、可读段落提取、浏览器端播放管理、整理过的 prompt 音色，以及适合网页朗读的轻量级交互体验。
+Nano Reader 是一个基于 `MOSS-TTS-Nano` 的轻量级浏览器朗读工具，重点是用简单的扩展 + 本地服务方式实现低延迟网页阅读。
 
 ### 主要特性
 
-- **本地浏览器朗读流程**：Chrome 扩展配合本地 Flask 服务
-- **仅支持 CPU 推理**：与官方 `MOSS-TTS-Nano/app.py` 的 CPU 行为保持一致
-- **流式优先朗读**：按段播放，首段音频返回更快
-- **音色元数据映射**：弹窗中的音色分组与显示名称由 `assets/voice_browser_metadata.json` 驱动
-- **预置 prompt 音色**：内置中文、英文、日文默认音色，并映射到本地参考音频
-- **文本正则化开关**：浏览器端显式提供 `Enable WeTextProcessing` 和 `Enable normalize_tts_text`
-- **网页友好内容提取**：保留段落中的内联超链接文本，不会把上下文拆开
-- **实时解码控制**：`Realtime Streaming Decode` 默认开启；只有关闭 realtime decode 时，`Playback Speed` 才会显示并生效
-- **阅读状态展示**：`Start from` 用于设置起始段落，`Now Reading` 用于展示当前正在朗读的段落内容
+- **支持超低延迟网页阅读**
+- **支持纯 CPU 推理**
+- **支持 Chrome、Edge 等浏览器扩展**
+- **支持自由添加音色**
 
 ## 支持的语言
 
@@ -92,6 +87,23 @@ MOSS-TTS-Nano 目前支持 **20 种语言**：
 | 土耳其语 | tr | 🇹🇷 |  |  |  |  |  |  |
 
 ## 快速开始
+
+### 获取仓库
+
+Nano Reader 现在通过 git submodule 管理 `MOSS-TTS-Nano`。
+
+如果你是第一次克隆本仓库，建议直接连同 submodule 一起拉取：
+
+```bash
+git clone --recurse-submodules https://github.com/OpenMOSS/MOSS-TTS-Nano-Reader.git
+```
+
+如果你已经克隆了 Nano Reader，但当时没有带上 submodule，可以执行：
+
+```bash
+cd MOSS-TTS-Nano-Reader
+git submodule update --init --recursive
+```
 
 ### 环境配置
 
@@ -146,21 +158,6 @@ Nano Reader 默认使用以下固定目录布局：
 - Checkpoint：`MOSS-TTS-Nano-Reader/models/MOSS-TTS-Nano`
 - Audio tokenizer：`MOSS-TTS-Nano-Reader/models/MOSS-Audio-Tokenizer-Nano`
 
-Nano Reader 现在通过 git submodule 管理 `MOSS-TTS-Nano`。
-
-如果你是第一次克隆本仓库，建议直接连同 submodule 一起拉取：
-
-```bash
-git clone --recurse-submodules https://github.com/OpenMOSS/MOSS-TTS-Nano-Reader.git
-```
-
-如果你已经克隆了 Nano Reader，但当时没有带上 submodule，可以执行：
-
-```bash
-cd MOSS-TTS-Nano-Reader
-git submodule update --init --recursive
-```
-
 再把 Hugging Face 模型权重下载到默认本地目录：
 
 ```bash
@@ -189,6 +186,24 @@ python server.py
 - 监听 `http://localhost:5050`
 - 如果默认仓库目录或模型目录缺失，会直接报清晰错误并退出
 
+如果你希望改用其他端口，可以这样启动：
+
+```bash
+python server.py --port 6060
+```
+
+等价的环境变量方式：
+
+```bash
+export NANO_TTS_PORT=6060
+python server.py
+```
+
+注意：
+
+- 当前浏览器扩展默认仍连接 `http://localhost:5050`
+- 如果你改了端口，需要同时修改 `extension/popup.js`、`extension/content.js` 和 `extension/manifest.json` 中的地址，并重新加载扩展
+
 使用自定义路径的示例：
 
 ```bash
@@ -198,7 +213,7 @@ python server.py \
   --audio-tokenizer-path /path/to/models/MOSS-Audio-Tokenizer-Nano \
 ```
 
-等价的环境变量启动方式：
+自定义模型路径对应的等价环境变量启动方式：
 
 ```bash
 export NANO_TTS_REPO_PATH=/path/to/MOSS-TTS-Nano
@@ -226,12 +241,14 @@ python server.py
 7. 除非你明确想关闭文本规范化，否则建议保持 `Enable WeTextProcessing` 和 `Enable normalize_tts_text` 为开启状态
 8. 点击 `Read Page`
 
-补充说明：
+## 使用说明
 
-- `Now Reading` 用于展示当前正在朗读的段落，不会替代 `Start from`
-- `Realtime Streaming Decode` 默认开启
-- `Playback Speed` 只有在关闭 realtime decode 时才会显示并生效
-- 弹窗中只会显示 `assets/voice_browser_metadata.json` 中声明的音色
+- server 启动后，可以通过对应地址加 `/health` 判断是否启动成功，默认是 `http://localhost:5050/health`。
+- `Realtime Streaming Decode` 实时低延迟推理默认开启；关闭后，会等整段音频推理完成再开始播放。
+- 如果播放较卡，可以尝试调大 `CPU Threads`，或者关闭一些占用 CPU 较高的程序。
+- `Initial Playback Delay (s)` 表示首帧播放前的等待时间。适当调大一些，可以让模型先多推理一段时间再开始播放。
+- `Enable WeTextProcessing` 表示开启 WeTextProcessing 文本正则化。如果一些符号被读成了与其含义不一致的内容，可以尝试将其关闭。
+- 可以使用 `Add Voice` 添加音色。添加后该音色会一直保留在选项中；如果需要删除，可以直接修改 `assets/voice_browser_metadata.json`。
 
 ## 致谢
 

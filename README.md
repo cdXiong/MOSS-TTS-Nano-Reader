@@ -23,7 +23,7 @@
 
 [English](README.md) | [简体中文](README_zh.md)
 
-MOSS-TTS-Nano Reader is a local browser reading application built on [MOSS-TTS-Nano](https://github.com/OpenMOSS/MOSS-TTS-Nano). It combines a Chrome extension, a local Flask server, curated prompt-voice metadata, and CPU-friendly streaming inference so web pages can be read aloud directly on your own machine.
+MOSS-TTS-Nano Reader is a local browser webpage reading application built on [MOSS-TTS-Nano](https://github.com/OpenMOSS/MOSS-TTS-Nano).
 
 ## News
 
@@ -45,11 +45,13 @@ MOSS-TTS-Nano Reader is a local browser reading application built on [MOSS-TTS-N
   - [Main Features](#main-features)
 - [Supported Languages](#supported-languages)
 - [Quickstart](#quickstart)
+  - [Get The Repository](#get-the-repository)
   - [Environment Setup](#environment-setup)
   - [Prepare The Project Layout](#prepare-the-project-layout)
   - [Start The Local Nano Reader Server](#start-the-local-nano-reader-server)
   - [Load The Chrome Extension](#load-the-chrome-extension)
   - [Read A Page In The Browser](#read-a-page-in-the-browser)
+- [Usage Notes](#usage-notes)
 - [Acknowledgements](#acknowledgements)
 - [MOSS-Audio-Tokenizer-Nano](#moss-audio-tokenizer-nano)
 - [License](#license)
@@ -61,21 +63,14 @@ MOSS-TTS-Nano Reader is a local browser reading application built on [MOSS-TTS-N
   <img src="./assets/images/concept.png" alt="MOSS-TTS-Nano concept" width="85%" />
 </p>
 
-MOSS-TTS-Nano focuses on the part of TTS deployment that matters most in practice: **small footprint**, **low latency**, **good enough quality for realtime products**, and **simple local setup**. It uses a pure autoregressive **Audio Tokenizer + LLM** pipeline and keeps the inference workflow friendly for both terminal users and web-demo users.
-
-Nano Reader packages that runtime into a browser-first workflow. The project adds a local Flask server, Chrome extension controls, readable-paragraph extraction, browser-side playback management, curated prompt voices, and a lightweight reading UX for page-by-page or paragraph-by-paragraph listening.
+Nano Reader is a lightweight browser reading tool built on top of `MOSS-TTS-Nano`. It focuses on low-latency local webpage reading with a simple extension + local server workflow.
 
 ### Main Features
 
-- **Local browser reading flow**: Chrome extension plus local Flask server
-- **CPU-only inference**: aligned with the official `MOSS-TTS-Nano/app.py` CPU behavior
-- **Streaming-first reading**: paragraph-by-paragraph playback for fast first audio
-- **Voice browser metadata**: popup voice groups and names are driven by `assets/voice_browser_metadata.json`
-- **Prompt-voice presets**: built-in Chinese, English, and Japanese voices mapped to local prompt audio
-- **Text normalization toggles**: explicit browser-side switches for `Enable WeTextProcessing` and `Enable normalize_tts_text`
-- **Webpage-friendly extraction**: keeps inline hyperlink text inside the surrounding paragraph instead of splitting it apart
-- **Realtime decode controls**: `Realtime Streaming Decode` is enabled by default; `Playback Speed` is only shown and applied when realtime decode is disabled
-- **Reading state UI**: `Start from` controls the initial paragraph and `Now Reading` shows the active paragraph text
+- **Ultra-low-latency webpage reading**
+- **Pure CPU inference**
+- **Chrome / Edge extension support**
+- **Freely add custom voices**
 
 ## Supported Languages
 
@@ -92,6 +87,23 @@ MOSS-TTS-Nano currently supports **20 languages**:
 | Turkish | tr | 🇹🇷 |  |  |  |  |  |  |
 
 ## Quickstart
+
+### Get The Repository
+
+Nano Reader now tracks `MOSS-TTS-Nano` as a git submodule.
+
+For a fresh clone of this repository, clone it with submodules:
+
+```bash
+git clone --recurse-submodules https://github.com/OpenMOSS/MOSS-TTS-Nano-Reader.git
+```
+
+If you already cloned Nano Reader without submodules, initialize and fetch them with:
+
+```bash
+cd MOSS-TTS-Nano-Reader
+git submodule update --init --recursive
+```
 
 ### Environment Setup
 
@@ -147,21 +159,6 @@ Nano Reader defaults to the following fixed layout:
 - Checkpoint: `MOSS-TTS-Nano-Reader/models/MOSS-TTS-Nano`
 - Audio tokenizer: `MOSS-TTS-Nano-Reader/models/MOSS-Audio-Tokenizer-Nano`
 
-Nano Reader now tracks `MOSS-TTS-Nano` as a git submodule.
-
-For a fresh clone of this repository, clone it with submodules:
-
-```bash
-git clone --recurse-submodules https://github.com/OpenMOSS/MOSS-TTS-Nano-Reader.git
-```
-
-If you already cloned Nano Reader without submodules, initialize and fetch them with:
-
-```bash
-cd MOSS-TTS-Nano-Reader
-git submodule update --init --recursive
-```
-
 Download model weights from Hugging Face into the default local directories:
 
 ```bash
@@ -190,6 +187,24 @@ By default, the server will:
 - listen on `http://localhost:5050`
 - exit early with a clear error if the default repo or model directories are missing
 
+Use a different port:
+
+```bash
+python server.py --port 6060
+```
+
+Equivalent environment-variable launch:
+
+```bash
+export NANO_TTS_PORT=6060
+python server.py
+```
+
+Important:
+
+- The current browser extension is still configured for `http://localhost:5050`
+- If you change the port, also update `extension/popup.js`, `extension/content.js`, and `extension/manifest.json`, then reload the extension
+
 Optional custom-path launch:
 
 ```bash
@@ -199,7 +214,7 @@ python server.py \
   --audio-tokenizer-path /path/to/models/MOSS-Audio-Tokenizer-Nano \
 ```
 
-Equivalent environment-variable launch:
+Equivalent environment-variable launch for custom model paths:
 
 ```bash
 export NANO_TTS_REPO_PATH=/path/to/MOSS-TTS-Nano
@@ -227,12 +242,14 @@ python server.py
 7. Keep `Enable WeTextProcessing` and `Enable normalize_tts_text` enabled unless you explicitly want raw text
 8. Click `Read Page`
 
-Useful notes:
+## Usage Notes
 
-- `Now Reading` shows the currently active paragraph and does not replace the `Start from` selector
-- `Realtime Streaming Decode` is enabled by default
-- `Playback Speed` is only visible and effective when realtime decode is disabled
-- The popup only shows voices declared in `assets/voice_browser_metadata.json`
+- After the server starts, you can check whether it is ready through `/health`, for example `http://localhost:5050/health` by default.
+- `Realtime Streaming Decode` is enabled by default for low-latency playback. If you turn it off, the extension waits until the full audio segment is generated before playback starts.
+- If playback feels choppy, try increasing `CPU Threads`, or close other CPU-heavy programs.
+- `Initial Playback Delay (s)` controls how long the player waits before starting the first audio frame. A slightly larger value lets the model generate more audio before playback begins.
+- `Enable WeTextProcessing` enables WeTextProcessing-based text normalization. If some symbols are spoken in an unexpected way, try turning it off.
+- You can use `Add Voice` to add custom voices. Added voices remain in the selector until you remove their entries from `assets/voice_browser_metadata.json`.
 
 ## Acknowledgements
 

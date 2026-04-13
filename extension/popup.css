@@ -105,6 +105,12 @@ h1 {
   margin-bottom: 0;
 }
 
+.label-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 #start-position-group {
   display: flex;
   flex-wrap: wrap;

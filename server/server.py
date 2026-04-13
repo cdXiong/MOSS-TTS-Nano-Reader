@@ -37,6 +37,8 @@ LOCAL_VOICE_ASSETS_DIR = POCKET_READER_DIR / "assets" / "audio"
 VOICE_BROWSER_METADATA_PATH = POCKET_READER_DIR / "assets" / "voice_browser_metadata.json"
 VOICE_METADATA_LOCK = threading.Lock()
 ALLOWED_LOCAL_VOICE_AUDIO_SUFFIXES = {".wav", ".mp3", ".flac", ".ogg", ".m4a"}
+DEFAULT_CHECKPOINT_REPO_ID = "OpenMOSS-Team/MOSS-TTS-Nano"
+DEFAULT_AUDIO_TOKENIZER_REPO_ID = "OpenMOSS-Team/MOSS-Audio-Tokenizer-Nano"
 
 
 def _read_cli_option(flag_names: tuple[str, ...]) -> str | None:
@@ -96,14 +98,60 @@ def _require_repo_checkout(repo_dir: Path) -> None:
         )
 
 
-def _require_default_model_dir(path: Path, *, label: str, flag_names: tuple[str, ...], env_key: str) -> None:
-    if path.exists():
+def _model_dir_looks_ready(
+    path: Path,
+    *,
+    required_files: tuple[str, ...],
+    required_any_files: tuple[str, ...],
+) -> bool:
+    if not path.is_dir():
+        return False
+    for relative_path in required_files:
+        if not (path / relative_path).exists():
+            return False
+    return any((path / relative_path).exists() for relative_path in required_any_files)
+
+
+def _ensure_default_model_dir(
+    path: Path,
+    *,
+    label: str,
+    repo_id: str,
+    required_files: tuple[str, ...],
+    required_any_files: tuple[str, ...],
+    flag_names: tuple[str, ...],
+    env_key: str,
+) -> None:
+    if _model_dir_looks_ready(path, required_files=required_files, required_any_files=required_any_files):
         return
-    flags_text = " / ".join(flag_names)
-    _exit_with_layout_error(
-        f"Missing default {label}: {path}\n"
-        f"Expected the release layout under pocket-reader/models, or pass {flags_text} / {env_key} explicitly."
+    try:
+        from huggingface_hub import snapshot_download
+    except Exception as exc:
+        flags_text = " / ".join(flag_names)
+        _exit_with_layout_error(
+            f"Missing default {label}: {path}\n"
+            f"Automatic download requires huggingface_hub. install_error={exc}\n"
+            f"Or pass {flags_text} / {env_key} explicitly."
+        )
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    logging.info(
+        "Missing default %s at %s. Downloading %s from Hugging Face. This may take a while...",
+        label,
+        path,
+        repo_id,
     )
+    snapshot_download(
+        repo_id=repo_id,
+        local_dir=str(path),
+    )
+    if not _model_dir_looks_ready(path, required_files=required_files, required_any_files=required_any_files):
+        flags_text = " / ".join(flag_names)
+        _exit_with_layout_error(
+            f"Downloaded {label} to {path}, but required files are still missing.\n"
+            f"Please verify the local directory, or pass {flags_text} / {env_key} explicitly."
+        )
+    logging.info("Finished downloading %s to %s", label, path)
 
 
 NANO_TTS_REPO_DIR = _resolve_repo_dir()
@@ -883,6 +931,7 @@ def health():
 
 @app.route("/voices", methods=["GET"])
 def list_voices():
+    refresh_runtime_voice_presets()
     runtime = get_runtime()
     voice_names = runtime.list_voice_names()
     browser_metadata_rows = [
@@ -1218,16 +1267,22 @@ def main(argv: list[str] | None = None):
         )
 
     if args.checkpoint_path == str(DEFAULT_LOCAL_CHECKPOINT_PATH):
-        _require_default_model_dir(
+        _ensure_default_model_dir(
             DEFAULT_LOCAL_CHECKPOINT_PATH,
             label="checkpoint directory",
+            repo_id=DEFAULT_CHECKPOINT_REPO_ID,
+            required_files=("config.json",),
+            required_any_files=("pytorch_model.bin", "model.safetensors.index.json", "model-00001-of-00001.safetensors"),
             flag_names=("--checkpoint-path", "--checkpoint_path"),
             env_key="NANO_TTS_CHECKPOINT_PATH",
         )
     if args.audio_tokenizer_path == str(DEFAULT_LOCAL_AUDIO_TOKENIZER_PATH):
-        _require_default_model_dir(
+        _ensure_default_model_dir(
             DEFAULT_LOCAL_AUDIO_TOKENIZER_PATH,
             label="audio tokenizer directory",
+            repo_id=DEFAULT_AUDIO_TOKENIZER_REPO_ID,
+            required_files=("config.json",),
+            required_any_files=("model.safetensors.index.json", "model-00001-of-00001.safetensors", "pytorch_model.bin"),
             flag_names=("--audio-tokenizer-path", "--audio_tokenizer_path"),
             env_key="NANO_TTS_AUDIO_TOKENIZER_PATH",
         )
@@ -1255,8 +1310,16 @@ def main(argv: list[str] | None = None):
     logging.info("Audio tokenizer path: %s", runtime.audio_tokenizer_path)
     logging.info("Server running at http://%s:%s", args.host, args.port)
 
+    normalization_snapshot = get_text_normalizer_manager().ensure_ready()
+    if normalization_snapshot.failed:
+        logging.warning(
+            "WeTextProcessing preload did not finish successfully at startup. status=%s error=%s",
+            normalization_snapshot.message,
+            normalization_snapshot.error,
+        )
+    logging.info("Nano Reader is loading. Please wait.")
     runtime.preload(voices=[runtime.default_voice], load_model=True)
-    get_text_normalizer_manager().start()
+    logging.info("Nano Reader has finished loading. Welcome.")
     app.run(host=args.host, port=args.port)
 
 

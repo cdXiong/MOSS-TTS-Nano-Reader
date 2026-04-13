@@ -8,6 +8,7 @@ const SERVER_URL = 'http://localhost:5050';
 // DOM Elements
 const serverStatus = document.getElementById('server-status');
 const voiceSelect = document.getElementById('voice-select');
+const btnReloadVoices = document.getElementById('btn-reload-voices');
 const btnToggleAddVoice = document.getElementById('btn-toggle-add-voice');
 const addVoicePanel = document.getElementById('add-voice-panel');
 const newVoiceNameInput = document.getElementById('new-voice-name');
@@ -114,6 +115,7 @@ async function init() {
 
   // Set up event listeners
   voiceSelect.addEventListener('change', saveVoicePreference);
+  btnReloadVoices.addEventListener('click', handleReloadVoices);
   btnToggleAddVoice.addEventListener('click', toggleAddVoicePanel);
   newVoiceGroupSelect.addEventListener('change', handleVoiceGroupSelectionChange);
   btnSaveVoice.addEventListener('click', handleSaveVoice);
@@ -164,6 +166,7 @@ async function checkServerStatus() {
       serverConnected = true;
       btnRead.disabled = false;
       btnScan.disabled = false;
+      btnReloadVoices.disabled = false;
       btnToggleAddVoice.disabled = false;
     } else {
       throw new Error('Server returned error');
@@ -173,6 +176,7 @@ async function checkServerStatus() {
     serverConnected = false;
     btnRead.disabled = true;
     btnScan.disabled = true;
+    btnReloadVoices.disabled = true;
     btnToggleAddVoice.disabled = true;
     if (!addVoicePanel.classList.contains('hidden')) {
       closeAddVoicePanel();
@@ -356,6 +360,30 @@ function saveVoicePreference() {
   chrome.storage.local.set({ voice: voiceSelect.value });
 }
 
+async function handleReloadVoices() {
+  if (!serverConnected) {
+    showMessage('error', 'Server not connected');
+    return;
+  }
+
+  const originalButtonText = btnReloadVoices.textContent;
+  btnReloadVoices.disabled = true;
+  btnToggleAddVoice.disabled = true;
+  btnReloadVoices.textContent = 'Reloading...';
+
+  try {
+    await populateVoiceOptions(voiceSelect.value);
+    showMessage('success', 'Voice list reloaded');
+  } catch (error) {
+    console.error('Reload voices error:', error);
+    showMessage('error', error.message || 'Failed to reload voices');
+  } finally {
+    btnReloadVoices.disabled = !serverConnected;
+    btnToggleAddVoice.disabled = !serverConnected;
+    btnReloadVoices.textContent = originalButtonText;
+  }
+}
+
 async function handleSaveVoice() {
   if (!serverConnected) {
     showMessage('error', 'Server not connected');
@@ -422,6 +450,7 @@ async function handleSaveVoice() {
   } finally {
     btnSaveVoice.disabled = false;
     btnCancelAddVoice.disabled = false;
+    btnReloadVoices.disabled = !serverConnected;
     btnToggleAddVoice.disabled = !serverConnected;
     btnSaveVoice.textContent = originalButtonText;
   }
