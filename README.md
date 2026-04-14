@@ -89,6 +89,8 @@ MOSS-TTS-Nano currently supports **20 languages**:
 
 ## Quickstart
 
+The recommended workflow is: start a local Nano Reader inference service first, either with `reader-app` or the command-line service, and then use the browser extension directly for webpage playback. We also plan to provide ready-to-use packaged builds through [Releases](https://github.com/OpenMOSS/MOSS-TTS-Nano-Reader/releases) so they can work out of the box together with the browser extension.
+
 ### Get The Repository
 
 Nano Reader now tracks `MOSS-TTS-Nano` as a git submodule.
@@ -186,9 +188,9 @@ The current `reader-app` can:
 - start, stop, and restart the local server
 - show live startup and runtime logs
 - change `Server Port`
-- set `Checkpoint Path` and `Audio Tokenizer Path`
+- set `Checkpoint Path` and `Audio Tokenizer Path` to load models from specific paths
 
-If a packaged `reader-app` build is provided for your platform, you can launch that packaged executable directly instead of running `python reader-app/main.py`.
+A packaged `reader-app` build for supported platforms can be downloaded from [Releases](https://github.com/OpenMOSS/MOSS-TTS-Nano-Reader/releases). Reader App automatically downloads model weights to the default paths.
 
 If you use a non-default port in `reader-app`, update the same host and port in the extension popup under `Server Connection`.
 
@@ -227,7 +229,6 @@ Important:
 
 - The browser extension uses `http://localhost:5050` by default
 - If you change the port, open the extension popup, expand `Server Connection`, set the same host and port, then click `Apply`
-- After this version, changing only the host or port does not require reloading the extension
 
 Optional custom-path launch:
 
@@ -253,7 +254,6 @@ python server.py
 2. Enable `Developer mode`
 3. Click `Load unpacked`
 4. Select the `MOSS-TTS-Nano-Reader/extension` folder
-5. Reload the extension after frontend changes so popup UI updates take effect
 
 ### Read A Page In The Browser
 

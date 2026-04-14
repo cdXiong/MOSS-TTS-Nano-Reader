@@ -25,21 +25,14 @@
 
 MOSS-TTS-Nano Reader 是一个基于 [MOSS-TTS-Nano](https://github.com/OpenMOSS/MOSS-TTS-Nano) 的本地浏览器网页朗读应用。
 
-## 新闻
-
-* 2026.4.14：我们发布 **MOSS-TTS-Nano Reader**，这是一个构建在 **MOSS-TTS-Nano** 之上的浏览器端本地朗读集成项目。
-* 2026.4.10：我们发布了 **MOSS-TTS-Nano**。演示 Space 已在 [OpenMOSS-Team/MOSS-TTS-Nano](https://huggingface.co/spaces/OpenMOSS-Team/MOSS-TTS-Nano) 上线，也可以通过 [openmoss.github.io/MOSS-TTS-Nano-Demo/](https://openmoss.github.io/MOSS-TTS-Nano-Demo/) 查看 demo 和更多细节。
 
 ## 演示
 
 ![Nano Reader demo](./assets/images/demo.jpg)
 
-- 在线演示：[https://openmoss.github.io/MOSS-TTS-Nano-Demo/](https://openmoss.github.io/MOSS-TTS-Nano-Demo/)
-- Hugging Face Space：[OpenMOSS-Team/MOSS-TTS-Nano](https://huggingface.co/spaces/OpenMOSS-Team/MOSS-TTS-Nano)
 
 ## 目录
 
-- [新闻](#新闻)
 - [演示](#演示)
 - [介绍](#介绍)
   - [主要特性](#主要特性)
@@ -56,7 +49,6 @@ MOSS-TTS-Nano Reader 是一个基于 [MOSS-TTS-Nano](https://github.com/OpenMOSS
 - [使用说明](#使用说明)
 - [致谢](#致谢)
 - [许可证](#许可证)
-- [引用](#引用)
 
 ## 介绍
 
@@ -88,6 +80,8 @@ MOSS-TTS-Nano 目前支持 **20 种语言**：
 | 土耳其语 | tr | 🇹🇷 |  |  |  |  |  |  |
 
 ## 快速开始
+
+推荐的整体使用流程是：先启动本地 Nano Reader 推理服务，可以使用 `reader-app` 或命令行版服务；服务启动后，再通过浏览器扩展直接进行网页朗读播放。后续我们也会考虑在 [Releases](https://github.com/OpenMOSS/MOSS-TTS-Nano-Reader/releases) 提供可直接使用的打包版本，方便配合浏览器插件开箱即用。
 
 ### 获取仓库
 
@@ -185,9 +179,9 @@ python reader-app/main.py
 - 启动、停止、重启本地服务
 - 实时显示启动日志和运行日志
 - 修改 `Server Port`
-- 输入 `Checkpoint Path` 和 `Audio Tokenizer Path`
+- 输入 `Checkpoint Path` 和 `Audio Tokenizer Path` 以加载指定路径的模型
 
-如果后续提供了对应平台的 `reader-app` 打包文件，也可以直接运行打包后的可执行文件，不需要再手动执行 `python reader-app/main.py`。
+对应平台的 `reader-app` 打包文件可以从 [Releases](https://github.com/OpenMOSS/MOSS-TTS-Nano-Reader/releases) 下载，欢迎使用。Reader App 会自动将模型权重下载到默认路径。
 
 如果你在 `reader-app` 里使用了非默认端口，也需要在扩展弹窗的 `Server Connection` 中设置相同的 host 和 port。
 
@@ -226,7 +220,6 @@ python server.py
 
 - 浏览器扩展默认使用 `http://localhost:5050`
 - 如果你改了端口，可以直接打开扩展弹窗，展开 `Server Connection`，把相同的 host 和 port 填进去后点击 `Apply`
-- 现在仅修改 host 或 port 时，不需要重新加载扩展
 
 使用自定义路径的示例：
 
@@ -252,7 +245,6 @@ python server.py
 2. 打开 `Developer mode`（开发者模式）
 3. 点击 `Load unpacked`（加载已解压的扩展程序）
 4. 选择 `MOSS-TTS-Nano-Reader/extension` 文件夹
-5. 如果前端改过代码，记得重新加载扩展以刷新弹窗 UI
 
 ### 在浏览器中朗读页面
 
@@ -282,41 +274,3 @@ python server.py
 ## 许可证
 
 本仓库将遵循根目录中的 `LICENSE` 文件中指定的许可证。如果您在该文件发布前阅读本文档，请将本仓库视为 **未获得重新发布许可**。
-
-## 引用
-
-如果您在研究或产品中使用了 MOSS-TTS 工作，请引用：
-
-```bibtex
-@misc{openmoss2026mossttsnano,
-  title={MOSS-TTS-Nano},
-  author={OpenMOSS Team},
-  year={2026},
-  howpublished={GitHub repository},
-  url={https://github.com/OpenMOSS/MOSS-TTS-Nano}
-}
-```
-
-```bibtex
-@misc{gong2026mossttstechnicalreport,
-  title={MOSS-TTS Technical Report},
-  author={Yitian Gong and Botian Jiang and Yiwei Zhao and Yucheng Yuan and Kuangwei Chen and Yaozhou Jiang and Cheng Chang and Dong Hong and Mingshu Chen and Ruixiao Li and Yiyang Zhang and Yang Gao and Hanfu Chen and Ke Chen and Songlin Wang and Xiaogui Yang and Yuqian Zhang and Kexin Huang and ZhengYuan Lin and Kang Yu and Ziqi Chen and Jin Wang and Zhaoye Fei and Qinyuan Cheng and Shimin Li and Xipeng Qiu},
-  year={2026},
-  eprint={2603.18090},
-  archivePrefix={arXiv},
-  primaryClass={cs.SD},
-  url={https://arxiv.org/abs/2603.18090}
-}
-```
-
-```bibtex
-@misc{gong2026mossaudiotokenizerscalingaudiotokenizers,
-  title={MOSS-Audio-Tokenizer: Scaling Audio Tokenizers for Future Audio Foundation Models},
-  author={Yitian Gong and Kuangwei Chen and Zhaoye Fei and Xiaogui Yang and Ke Chen and Yang Wang and Kexin Huang and Mingshu Chen and Ruixiao Li and Qingyuan Cheng and Shimin Li and Xipeng Qiu},
-  year={2026},
-  eprint={2602.10934},
-  archivePrefix={arXiv},
-  primaryClass={cs.SD},
-  url={https://arxiv.org/abs/2602.10934}
-}
-```
