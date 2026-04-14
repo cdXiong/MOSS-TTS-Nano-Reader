@@ -1,10 +1,77 @@
+(() => {
+if (globalThis.__NANO_READER_CONTENT_SCRIPT_LOADED__) {
+  console.debug('Nano Reader content script already loaded');
+  return;
+}
+globalThis.__NANO_READER_CONTENT_SCRIPT_LOADED__ = true;
+
 /**
  * Nano Reader - Content Script
  * Extracts main content from web pages and handles audio playback
  * Uses streaming-first synthesis with fallback for resilient playback
  */
 
-const SERVER_URL = 'http://localhost:5050';
+const DEFAULT_SERVER_CONFIG = {
+  host: 'localhost',
+  port: 5050
+};
+
+function normalizeServerConfig(rawConfig = {}) {
+  const normalizedHost = String(rawConfig?.host || '').trim() === '127.0.0.1'
+    ? '127.0.0.1'
+    : DEFAULT_SERVER_CONFIG.host;
+  const parsedPort = parseInt(rawConfig?.port, 10);
+  const normalizedPort = Number.isFinite(parsedPort) && parsedPort > 0 && parsedPort <= 65535
+    ? parsedPort
+    : DEFAULT_SERVER_CONFIG.port;
+  return {
+    host: normalizedHost,
+    port: normalizedPort
+  };
+}
+
+function loadServerConfig() {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(['serverConfig'], (result) => {
+      if (chrome.runtime.lastError) {
+        resolve(DEFAULT_SERVER_CONFIG);
+        return;
+      }
+      resolve(normalizeServerConfig(result?.serverConfig));
+    });
+  });
+}
+
+function getServerBaseUrl(serverConfig = DEFAULT_SERVER_CONFIG) {
+  const normalized = normalizeServerConfig(serverConfig);
+  return `http://${normalized.host}:${normalized.port}`;
+}
+
+function isNetworkFetchFailure(error) {
+  if (!error) {
+    return false;
+  }
+  const message = String(error.message || '');
+  return error.name === 'TypeError' || message.includes('Failed to fetch') || message.includes('NetworkError');
+}
+
+function logStreamingFallback(message, error) {
+  if (isNetworkFetchFailure(error)) {
+    console.debug(message, error);
+    return;
+  }
+  console.warn(message, error);
+}
+
+async function fetchFromConfiguredServer(path, init = undefined) {
+  const serverConfig = await loadServerConfig();
+  return fetch(`${getServerBaseUrl(serverConfig)}${path}`, init);
+}
+
+async function getConfiguredServerBaseUrl() {
+  const serverConfig = await loadServerConfig();
+  return getServerBaseUrl(serverConfig);
+}
 
 // Audio playback state
 let audioContext = null;
@@ -167,7 +234,7 @@ async function waitForRealtimePlaybackDrain(session, isStillActive) {
 
 async function playRealtimeAudioStream(text, voice, speed, settings, abortController, isStillActive) {
   const normalizedSettings = normalizeSynthesisSettings(settings);
-  const response = await fetch(`${SERVER_URL}/synthesize-realtime`, {
+  const response = await fetchFromConfiguredServer('/synthesize-realtime', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'application/octet-stream' },
     body: JSON.stringify(buildSynthesisPayload(text, voice, normalizedSettings)),
@@ -636,7 +703,7 @@ async function playAudioBlob(audioBlob, onReadyToPrefetch) {
  * Synthesize a single paragraph - returns a promise for the audio blob
  */
 async function synthesizeParagraph(text, voice, settings = {}) {
-  const response = await fetch(`${SERVER_URL}/synthesize`, {
+  const response = await fetchFromConfiguredServer('/synthesize', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(buildSynthesisPayload(text, voice, settings))
@@ -669,7 +736,7 @@ async function playParagraphStreamFirst(text, voice, settings = {}) {
       );
     } catch (streamError) {
       if (streamError.name !== 'AbortError' && !streamError.playedAnyAudio) {
-        console.warn('Realtime paragraph streaming failed; falling back to /synthesize:', streamError);
+        logStreamingFallback('Realtime paragraph streaming failed; falling back to /synthesize:', streamError);
         const fallbackBlob = await synthesizeParagraph(text, voice, normalizedSettings);
         if (shouldStop) {
           return { stopped: true };
@@ -758,7 +825,7 @@ async function playParagraphStreamFirst(text, voice, settings = {}) {
 
     if (streamError && streamError.name !== 'AbortError') {
       if (!hasPlayedAnyStreamChunk) {
-        console.warn('Paragraph streaming failed before playback; falling back to /synthesize:', streamError);
+        logStreamingFallback('Paragraph streaming failed before playback; falling back to /synthesize:', streamError);
         const fallbackBlob = await synthesizeParagraph(text, voice, normalizedSettings);
 
         if (shouldStop) {
@@ -782,7 +849,7 @@ async function playParagraphStreamFirst(text, voice, settings = {}) {
  * Get paragraphs from server
  */
 async function getParagraphs(text) {
-  const response = await fetch(`${SERVER_URL}/paragraphs`, {
+  const response = await fetchFromConfiguredServer('/paragraphs', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ text })
@@ -1131,7 +1198,7 @@ async function playSelectionChunk(audioBlob, speed) {
  * Stream synthesized selection audio chunks from server
  */
 async function streamSelectionAudio(text, voice, settings, onChunk, abortSignal) {
-  const response = await fetch(`${SERVER_URL}/synthesize-stream`, {
+  const response = await fetchFromConfiguredServer('/synthesize-stream', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(buildSynthesisPayload(text, voice, settings)),
@@ -1314,7 +1381,7 @@ async function speakSelection(voice, speed, settings = {}) {
 
     if (streamError && streamError.name !== 'AbortError') {
       if (!hasPlayedAnyStreamChunk) {
-        console.warn('Selection streaming failed before playback; falling back to /synthesize:', streamError);
+        logStreamingFallback('Selection streaming failed before playback; falling back to /synthesize:', streamError);
         const fallbackBlob = await synthesizeParagraph(selectedText, voice, synthesisSettings);
 
         if (!isReadingSelection) {
@@ -1335,7 +1402,8 @@ async function speakSelection(voice, speed, settings = {}) {
     console.error('Error speaking selection:', error);
 
     if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
-      alert('Could not connect to TTS server. Make sure the server is running at http://localhost:5050');
+      const serverBaseUrl = await getConfiguredServerBaseUrl();
+      alert(`Could not connect to TTS server. Make sure the server is running at ${serverBaseUrl}`);
     } else {
       alert('Error: ' + error.message);
     }
@@ -1458,3 +1526,4 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 // Log that content script is loaded
 console.log('Nano Reader content script loaded');
+})();

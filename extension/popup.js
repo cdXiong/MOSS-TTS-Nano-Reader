@@ -3,10 +3,17 @@
  * Handles UI interactions and communication with content script
  */
 
-const SERVER_URL = 'http://localhost:5050';
+const DEFAULT_SERVER_CONFIG = {
+  host: 'localhost',
+  port: 5050
+};
 
 // DOM Elements
 const serverStatus = document.getElementById('server-status');
+const serverHostSelect = document.getElementById('server-host');
+const serverPortInput = document.getElementById('server-port');
+const btnApplyServerConfig = document.getElementById('btn-apply-server-config');
+const btnResetServerConfig = document.getElementById('btn-reset-server-config');
 const voiceSelect = document.getElementById('voice-select');
 const btnReloadVoices = document.getElementById('btn-reload-voices');
 const btnToggleAddVoice = document.getElementById('btn-toggle-add-voice');
@@ -83,6 +90,53 @@ const FALLBACK_VOICE_GROUPS = [
   }
 ];
 
+function normalizeServerConfig(rawConfig = {}) {
+  const normalizedHost = String(rawConfig?.host || '').trim() === '127.0.0.1'
+    ? '127.0.0.1'
+    : DEFAULT_SERVER_CONFIG.host;
+  const parsedPort = parseInt(rawConfig?.port, 10);
+  const normalizedPort = Number.isFinite(parsedPort) && parsedPort > 0 && parsedPort <= 65535
+    ? parsedPort
+    : DEFAULT_SERVER_CONFIG.port;
+  return {
+    host: normalizedHost,
+    port: normalizedPort
+  };
+}
+
+function getServerBaseUrl(serverConfig = DEFAULT_SERVER_CONFIG) {
+  const normalized = normalizeServerConfig(serverConfig);
+  return `http://${normalized.host}:${normalized.port}`;
+}
+
+function buildServerRequestUrl(path, serverConfig = DEFAULT_SERVER_CONFIG) {
+  return `${getServerBaseUrl(serverConfig)}${path}`;
+}
+
+async function loadServerConfig() {
+  const { serverConfig } = await chrome.storage.local.get('serverConfig');
+  return normalizeServerConfig(serverConfig);
+}
+
+async function persistServerConfig(serverConfig) {
+  const normalized = normalizeServerConfig(serverConfig);
+  await chrome.storage.local.set({ serverConfig: normalized });
+  return normalized;
+}
+
+function applyServerConfigToUi(serverConfig) {
+  const normalized = normalizeServerConfig(serverConfig);
+  serverHostSelect.value = normalized.host;
+  serverPortInput.value = String(normalized.port);
+}
+
+function getServerConfigFromUi() {
+  return normalizeServerConfig({
+    host: serverHostSelect.value,
+    port: serverPortInput.value
+  });
+}
+
 function getFallbackVoiceGroups() {
   return FALLBACK_VOICE_GROUPS.map(({ label }) => label);
 }
@@ -102,7 +156,14 @@ function uniqueNonEmptyStrings(values = []) {
  */
 async function init() {
   // Load saved voice preference
-  const { voice, speed, ttsSettings } = await chrome.storage.local.get(['voice', 'speed', 'ttsSettings']);
+  const { voice, speed, ttsSettings, serverConfig } = await chrome.storage.local.get([
+    'voice',
+    'speed',
+    'ttsSettings',
+    'serverConfig'
+  ]);
+  const effectiveServerConfig = normalizeServerConfig(serverConfig);
+  applyServerConfigToUi(effectiveServerConfig);
   if (speed) {
     speedControl.value = speed;
     speedValue.textContent = `${speed}x`;
@@ -110,10 +171,12 @@ async function init() {
   applyTtsSettingsToUi(normalizeTtsSettings(ttsSettings));
 
   // Check server status
-  await checkServerStatus();
-  await populateVoiceOptions(voice);
+  await checkServerStatus(effectiveServerConfig);
+  await populateVoiceOptions(voice, effectiveServerConfig);
 
   // Set up event listeners
+  btnApplyServerConfig.addEventListener('click', handleApplyServerConfig);
+  btnResetServerConfig.addEventListener('click', handleResetServerConfig);
   voiceSelect.addEventListener('change', saveVoicePreference);
   btnReloadVoices.addEventListener('click', handleReloadVoices);
   btnToggleAddVoice.addEventListener('click', toggleAddVoicePanel);
@@ -154,15 +217,18 @@ async function init() {
 /**
  * Check if the TTS server is running
  */
-async function checkServerStatus() {
+async function checkServerStatus(serverConfig = null) {
+  const effectiveServerConfig = serverConfig ? normalizeServerConfig(serverConfig) : await loadServerConfig();
+  const serverBaseUrl = getServerBaseUrl(effectiveServerConfig);
+  setServerStatus('checking', `Checking ${effectiveServerConfig.host}:${effectiveServerConfig.port}...`);
   try {
-    const response = await fetch(`${SERVER_URL}/health`, {
+    const response = await fetch(buildServerRequestUrl('/health', effectiveServerConfig), {
       method: 'GET',
       signal: AbortSignal.timeout(3000)
     });
 
     if (response.ok) {
-      setServerStatus('connected', 'Server connected');
+      setServerStatus('connected', `Connected: ${effectiveServerConfig.host}:${effectiveServerConfig.port}`);
       serverConnected = true;
       btnRead.disabled = false;
       btnScan.disabled = false;
@@ -172,7 +238,7 @@ async function checkServerStatus() {
       throw new Error('Server returned error');
     }
   } catch (error) {
-    setServerStatus('disconnected', 'Server offline');
+    setServerStatus('disconnected', `Offline: ${effectiveServerConfig.host}:${effectiveServerConfig.port}`);
     serverConnected = false;
     btnRead.disabled = true;
     btnScan.disabled = true;
@@ -181,7 +247,10 @@ async function checkServerStatus() {
     if (!addVoicePanel.classList.contains('hidden')) {
       closeAddVoicePanel();
     }
-    showMessage('error', 'Server not running. Start it with: python server.py');
+    showMessage(
+      'error',
+      `Server not running at ${serverBaseUrl}. Start it with: python server.py --port ${effectiveServerConfig.port}`
+    );
   }
 }
 
@@ -306,14 +375,15 @@ function getSelectedVoiceGroup() {
   return rawGroup.replace(/\s+/g, ' ').trim();
 }
 
-async function populateVoiceOptions(savedVoice) {
+async function populateVoiceOptions(savedVoice, serverConfig = null) {
   let availableVoices = [];
   let defaultVoice = 'Junhao';
   let voiceMetadataRows = [];
+  const effectiveServerConfig = serverConfig ? normalizeServerConfig(serverConfig) : await loadServerConfig();
 
   if (serverConnected) {
     try {
-      const response = await fetch(`${SERVER_URL}/voices`, {
+      const response = await fetch(buildServerRequestUrl('/voices', effectiveServerConfig), {
         method: 'GET',
         signal: AbortSignal.timeout(3000)
       });
@@ -384,6 +454,63 @@ async function handleReloadVoices() {
   }
 }
 
+async function applyAndRefreshServerConfig(serverConfig, successType, successMessage) {
+  const normalized = await persistServerConfig(serverConfig);
+  applyServerConfigToUi(normalized);
+  await checkServerStatus(normalized);
+  await populateVoiceOptions(voiceSelect.value, normalized);
+  showMessage(successType, successMessage || `Server connection updated to ${getServerBaseUrl(normalized)}`);
+  return normalized;
+}
+
+async function handleApplyServerConfig() {
+  const originalApplyText = btnApplyServerConfig.textContent;
+  const originalResetText = btnResetServerConfig.textContent;
+  btnApplyServerConfig.disabled = true;
+  btnResetServerConfig.disabled = true;
+  btnApplyServerConfig.textContent = 'Applying...';
+
+  try {
+    await applyAndRefreshServerConfig(
+      getServerConfigFromUi(),
+      'success',
+      `Server connection updated to ${getServerBaseUrl(getServerConfigFromUi())}`
+    );
+  } catch (error) {
+    console.error('Apply server config error:', error);
+    showMessage('error', error.message || 'Failed to update server connection');
+  } finally {
+    btnApplyServerConfig.disabled = false;
+    btnResetServerConfig.disabled = false;
+    btnApplyServerConfig.textContent = originalApplyText;
+    btnResetServerConfig.textContent = originalResetText;
+  }
+}
+
+async function handleResetServerConfig() {
+  const originalApplyText = btnApplyServerConfig.textContent;
+  const originalResetText = btnResetServerConfig.textContent;
+  btnApplyServerConfig.disabled = true;
+  btnResetServerConfig.disabled = true;
+  btnResetServerConfig.textContent = 'Resetting...';
+
+  try {
+    await applyAndRefreshServerConfig(
+      DEFAULT_SERVER_CONFIG,
+      'info',
+      `Server connection reset to ${getServerBaseUrl(DEFAULT_SERVER_CONFIG)}`
+    );
+  } catch (error) {
+    console.error('Reset server config error:', error);
+    showMessage('error', error.message || 'Failed to reset server connection');
+  } finally {
+    btnApplyServerConfig.disabled = false;
+    btnResetServerConfig.disabled = false;
+    btnApplyServerConfig.textContent = originalApplyText;
+    btnResetServerConfig.textContent = originalResetText;
+  }
+}
+
 async function handleSaveVoice() {
   if (!serverConnected) {
     showMessage('error', 'Server not connected');
@@ -421,12 +548,13 @@ async function handleSaveVoice() {
   btnSaveVoice.textContent = 'Saving...';
 
   try {
+    const serverConfig = await loadServerConfig();
     const formData = new FormData();
     formData.append('name', voiceName);
     formData.append('group', groupName);
     formData.append('audio', uploadedFile);
 
-    const response = await fetch(`${SERVER_URL}/voices`, {
+    const response = await fetch(buildServerRequestUrl('/voices', serverConfig), {
       method: 'POST',
       body: formData,
       signal: AbortSignal.timeout(20000)

@@ -284,6 +284,17 @@ input[type="number"]:focus {
   margin-top: 12px;
 }
 
+.server-settings-grid {
+  margin-top: 12px;
+}
+
+.server-settings-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 12px;
+}
+
 .settings-grid .control-group {
   margin-bottom: 0;
 }

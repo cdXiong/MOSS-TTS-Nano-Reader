@@ -27,7 +27,7 @@ MOSS-TTS-Nano Reader is a local browser webpage reading application built on [MO
 
 ## News
 
-* 2026.4.13: We release **Nano Reader**, a browser-focused local reading integration on top of **MOSS-TTS-Nano**.
+* 2026.4.14: We release **Nano Reader**, a browser-focused local reading integration on top of **MOSS-TTS-Nano**.
 * 2026.4.10: We release **MOSS-TTS-Nano**. A demo Space is available at [OpenMOSS-Team/MOSS-TTS-Nano](https://huggingface.co/spaces/OpenMOSS-Team/MOSS-TTS-Nano). You can also view the demo and more details at [openmoss.github.io/MOSS-TTS-Nano-Demo/](https://openmoss.github.io/MOSS-TTS-Nano-Demo/).
 
 ## Demo
@@ -48,12 +48,13 @@ MOSS-TTS-Nano Reader is a local browser webpage reading application built on [MO
   - [Get The Repository](#get-the-repository)
   - [Environment Setup](#environment-setup)
   - [Prepare The Project Layout](#prepare-the-project-layout)
-  - [Start The Local Nano Reader Server](#start-the-local-nano-reader-server)
+  - [Start Nano Reader Locally](#start-nano-reader-locally)
+    - [Start The Desktop Reader App](#start-the-desktop-reader-app)
+    - [Start The Command-Line Nano Reader Service](#start-the-command-line-nano-reader-service)
   - [Load The Chrome Extension](#load-the-chrome-extension)
   - [Read A Page In The Browser](#read-a-page-in-the-browser)
 - [Usage Notes](#usage-notes)
 - [Acknowledgements](#acknowledgements)
-- [MOSS-Audio-Tokenizer-Nano](#moss-audio-tokenizer-nano)
 - [License](#license)
 - [Citation](#citation)
 
@@ -169,9 +170,31 @@ huggingface-cli download OpenMOSS-Team/MOSS-Audio-Tokenizer-Nano --local-dir mod
 
 If you prefer custom paths, you can still override the defaults with CLI arguments or environment variables when starting the server.
 
-### Start The Local Nano Reader Server
+### Start Nano Reader Locally
 
-Run the local Flask server from the `server` directory:
+#### Start The Desktop Reader App
+
+Use `reader-app` if you want a desktop window to start and manage the local service:
+
+```bash
+cd MOSS-TTS-Nano-Reader
+python reader-app/main.py
+```
+
+The current `reader-app` can:
+
+- start, stop, and restart the local server
+- show live startup and runtime logs
+- change `Server Port`
+- set `Checkpoint Path` and `Audio Tokenizer Path`
+
+If a packaged `reader-app` build is provided for your platform, you can launch that packaged executable directly instead of running `python reader-app/main.py`.
+
+If you use a non-default port in `reader-app`, update the same host and port in the extension popup under `Server Connection`.
+
+#### Start The Command-Line Nano Reader Service
+
+Use this mode if you prefer to run the local Flask server directly from the command line:
 
 ```bash
 cd MOSS-TTS-Nano-Reader/server
@@ -202,8 +225,9 @@ python server.py
 
 Important:
 
-- The current browser extension is still configured for `http://localhost:5050`
-- If you change the port, also update `extension/popup.js`, `extension/content.js`, and `extension/manifest.json`, then reload the extension
+- The browser extension uses `http://localhost:5050` by default
+- If you change the port, open the extension popup, expand `Server Connection`, set the same host and port, then click `Apply`
+- After this version, changing only the host or port does not require reloading the extension
 
 Optional custom-path launch:
 
@@ -233,14 +257,15 @@ python server.py
 
 ### Read A Page In The Browser
 
-1. Make sure `server.py` is already running
+1. Make sure `server.py` or `reader-app` is already running
 2. Open a webpage you want to read
 3. Click the Nano Reader extension icon
 4. Click `Scan` to extract readable paragraphs
 5. Choose the start paragraph from `Start from`
 6. Select a voice from the popup
-7. Keep `Enable WeTextProcessing` and `Enable normalize_tts_text` enabled unless you explicitly want raw text
-8. Click `Read Page`
+7. If needed, expand `Server Connection` and confirm the host and port match the running local service
+8. Keep `Enable WeTextProcessing` and `Enable normalize_tts_text` enabled unless you explicitly want raw text
+9. Click `Read Page`
 
 ## Usage Notes
 
@@ -253,31 +278,8 @@ python server.py
 
 ## Acknowledgements
 
-- Nano Reader is built on top of **MOSS-TTS-Nano** and **MOSS-Audio-Tokenizer-Nano** from the OpenMOSS team.
+- Nano Reader is built on top of [**MOSS-TTS-Nano**](https://github.com/OpenMOSS/MOSS-TTS-Nano) and [**MOSS-Audio-Tokenizer-Nano**](https://huggingface.co/OpenMOSS-Team/MOSS-Audio-Tokenizer-Nano) from the OpenMOSS team.
 - The browser-reader skeleton and original interaction flow were adapted from [lukasmwerner/pocket-reader](https://github.com/lukasmwerner/pocket-reader.git). We thank the original author for open-sourcing that project structure.
-
-## MOSS-Audio-Tokenizer-Nano
-
-<a id="mat-intro"></a>
-### Introduction
-**MOSS-Audio-Tokenizer** is the unified discrete audio interface for the entire MOSS-TTS family. It is built on the **Cat** (**C**ausal **A**udio **T**okenizer with **T**ransformer) architecture, a CNN-free audio tokenizer composed entirely of causal Transformer blocks. It serves as the shared audio backbone for MOSS-TTS, MOSS-TTS-Nano, MOSS-TTSD, MOSS-VoiceGenerator, MOSS-SoundEffect, and MOSS-TTS-Realtime, providing a consistent audio representation across the full product family.
-
-To further improve perceptual quality while reducing inference cost, we trained **MOSS-Audio-Tokenizer-Nano**, a lightweight tokenizer with approximately **20 million parameters** designed for high-fidelity audio compression. It supports **48 kHz** input and output as well as **stereo audio**, which helps reduce compression loss and improve listening quality. It can compress **48 kHz stereo audio** into a **12.5 Hz** token stream and uses **RVQ with 16 codebooks**, enabling high-fidelity reconstruction across variable bitrates from **0.125 kbps to 4 kbps**.
-
-
-To learn more about setup, advanced usage, and evaluation metrics, please visit the [MOSS-Audio-Tokenizer Repository](https://github.com/OpenMOSS/MOSS-Audio-Tokenizer)
-
-<p align="center">
-  <img src="./assets/images/arch_moss_audio_tokenizer_nano.png" alt="MOSS-Audio-Tokenizer-Nano architecture" width="100%" />
-  Architecture of MOSS-Audio-Tokenizer-Nano
-</p>
-
-### Model Weights
-
-| Model | Hugging Face | ModelScope |
-|:-----:|:------------:|:----------:|
-| **MOSS-Audio-Tokenizer-Nano** | [![Hugging Face](https://img.shields.io/badge/Huggingface-Model-orange?logo=huggingface)](https://huggingface.co/OpenMOSS-Team/MOSS-Audio-Tokenizer-Nano) | [![ModelScope](https://img.shields.io/badge/ModelScope-Model-lightgrey?logo=modelscope)](https://modelscope.cn/models/openmoss/MOSS-Audio-Tokenizer-Nano) |
-
 
 ## License
 

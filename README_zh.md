@@ -27,7 +27,7 @@ MOSS-TTS-Nano Reader 是一个基于 [MOSS-TTS-Nano](https://github.com/OpenMOSS
 
 ## 新闻
 
-* 2026.4.13：我们发布 **MOSS-TTS-Nano Reader**，这是一个构建在 **MOSS-TTS-Nano** 之上的浏览器端本地朗读集成项目。
+* 2026.4.14：我们发布 **MOSS-TTS-Nano Reader**，这是一个构建在 **MOSS-TTS-Nano** 之上的浏览器端本地朗读集成项目。
 * 2026.4.10：我们发布了 **MOSS-TTS-Nano**。演示 Space 已在 [OpenMOSS-Team/MOSS-TTS-Nano](https://huggingface.co/spaces/OpenMOSS-Team/MOSS-TTS-Nano) 上线，也可以通过 [openmoss.github.io/MOSS-TTS-Nano-Demo/](https://openmoss.github.io/MOSS-TTS-Nano-Demo/) 查看 demo 和更多细节。
 
 ## 演示
@@ -48,12 +48,13 @@ MOSS-TTS-Nano Reader 是一个基于 [MOSS-TTS-Nano](https://github.com/OpenMOSS
   - [获取仓库](#获取仓库)
   - [环境配置](#环境配置)
   - [准备项目目录布局](#准备项目目录布局)
-  - [启动本地 Nano Reader 服务](#启动本地-nano-reader-服务)
+  - [本地启动 Nano Reader](#本地启动-nano-reader)
+    - [启动桌面 Reader App](#启动桌面-reader-app)
+    - [启动命令行版 Nano Reader 服务](#启动命令行版-nano-reader-服务)
   - [加载 Chrome 扩展](#加载-chrome-扩展)
   - [在浏览器中朗读页面](#在浏览器中朗读页面)
 - [使用说明](#使用说明)
 - [致谢](#致谢)
-- [MOSS-Audio-Tokenizer-Nano](#moss-audio-tokenizer-nano)
 - [许可证](#许可证)
 - [引用](#引用)
 
@@ -168,9 +169,31 @@ huggingface-cli download OpenMOSS-Team/MOSS-Audio-Tokenizer-Nano --local-dir mod
 
 如果你希望使用自定义路径，启动服务时仍然可以通过 CLI 参数或环境变量覆盖默认路径。
 
-### 启动本地 Nano Reader 服务
+### 本地启动 Nano Reader
 
-在 `server` 目录下运行本地 Flask 服务：
+#### 启动桌面 Reader App
+
+如果你希望通过桌面窗口来启动并管理本地服务，可以使用 `reader-app`：
+
+```bash
+cd MOSS-TTS-Nano-Reader
+python reader-app/main.py
+```
+
+当前 `reader-app` 支持：
+
+- 启动、停止、重启本地服务
+- 实时显示启动日志和运行日志
+- 修改 `Server Port`
+- 输入 `Checkpoint Path` 和 `Audio Tokenizer Path`
+
+如果后续提供了对应平台的 `reader-app` 打包文件，也可以直接运行打包后的可执行文件，不需要再手动执行 `python reader-app/main.py`。
+
+如果你在 `reader-app` 里使用了非默认端口，也需要在扩展弹窗的 `Server Connection` 中设置相同的 host 和 port。
+
+#### 启动命令行版 Nano Reader 服务
+
+如果你更习惯直接在命令行中运行本地 Flask 服务，可以使用下面的方式：
 
 ```bash
 cd server
@@ -201,8 +224,9 @@ python server.py
 
 注意：
 
-- 当前浏览器扩展默认仍连接 `http://localhost:5050`
-- 如果你改了端口，需要同时修改 `extension/popup.js`、`extension/content.js` 和 `extension/manifest.json` 中的地址，并重新加载扩展
+- 浏览器扩展默认使用 `http://localhost:5050`
+- 如果你改了端口，可以直接打开扩展弹窗，展开 `Server Connection`，把相同的 host 和 port 填进去后点击 `Apply`
+- 现在仅修改 host 或 port 时，不需要重新加载扩展
 
 使用自定义路径的示例：
 
@@ -232,14 +256,15 @@ python server.py
 
 ### 在浏览器中朗读页面
 
-1. 确保 `server.py` 已经启动
+1. 确保 `server.py` 或 `reader-app` 已经启动
 2. 打开你要朗读的网页
 3. 点击 Nano Reader 扩展图标
 4. 点击 `Scan` 提取可读段落
 5. 在 `Start from` 中选择起始段落
 6. 在弹窗中选择音色
-7. 除非你明确想关闭文本规范化，否则建议保持 `Enable WeTextProcessing` 和 `Enable normalize_tts_text` 为开启状态
-8. 点击 `Read Page`
+7. 如有需要，展开 `Server Connection`，确认 host 和 port 与当前本地服务一致
+8. 除非你明确想关闭文本规范化，否则建议保持 `Enable WeTextProcessing` 和 `Enable normalize_tts_text` 为开启状态
+9. 点击 `Read Page`
 
 ## 使用说明
 
@@ -252,31 +277,8 @@ python server.py
 
 ## 致谢
 
-- Nano Reader 构建在 OpenMOSS 团队的 **MOSS-TTS-Nano** 与 **MOSS-Audio-Tokenizer-Nano** 之上。
+- Nano Reader 构建在 OpenMOSS 团队的 [**MOSS-TTS-Nano**](https://github.com/OpenMOSS/MOSS-TTS-Nano) 与 [**MOSS-Audio-Tokenizer-Nano**](https://huggingface.co/OpenMOSS-Team/MOSS-Audio-Tokenizer-Nano) 之上。
 - 浏览器朗读器的骨架和原始交互流程改编自 [lukasmwerner/pocket-reader](https://github.com/lukasmwerner/pocket-reader.git)。感谢原作者开源该项目结构。
-
-## MOSS-Audio-Tokenizer-Nano
-
-<a id="mat-intro"></a>
-### 介绍
-
-**MOSS-Audio-Tokenizer** 是整个 MOSS-TTS 系列的统一离散音频接口。它基于 **Cat**（**C**ausal **A**udio **T**okenizer with **T**ransformer）架构构建，这是一个由因果 Transformer 块完全组成的无 CNN 音频分词器。它作为 MOSS-TTS、MOSS-TTS-Nano、MOSS-TTSD、MOSS-VoiceGenerator、MOSS-SoundEffect 和 MOSS-TTS-Realtime 的共享音频 tokenizer，为整个产品系列提供一致的音频表示。
-
-为了进一步提高感知质量同时降低推理成本，我们训练了 **MOSS-Audio-Tokenizer-Nano**，这是一个轻量级分词器，包含约 **2000 万参数**，专为高保真音频压缩设计。它支持 **48 kHz** 输入输出以及 **立体声音频**，有助于减少压缩损失并提高听觉质量。它可以将 **48 kHz 立体声音频** 压缩成 **12.5 Hz** 的 token 流，使用 **带有 16 个码本的 RVQ**，在 **0.125 kbps 到 4 kbps** 的可变码率范围内实现高保真重建。
-
-要了解更多关于设置、高级用法和评估指标的信息，请访问 [MOSS-Audio-Tokenizer 仓库](https://github.com/OpenMOSS/MOSS-Audio-Tokenizer)
-
-<p align="center">
-  <img src="./assets/images/arch_moss_audio_tokenizer_nano.png" alt="MOSS-Audio-Tokenizer-Nano 架构" width="100%" />
-  MOSS-Audio-Tokenizer-Nano 架构
-</p>
-
-### 模型权重
-
-| 模型 | Hugging Face | ModelScope |
-|:-----:|:------------:|:----------:|
-| **MOSS-Audio-Tokenizer-Nano** | [![Hugging Face](https://img.shields.io/badge/Huggingface-Model-orange?logo=huggingface)](https://huggingface.co/OpenMOSS-Team/MOSS-Audio-Tokenizer-Nano) | [![ModelScope](https://img.shields.io/badge/ModelScope-Model-lightgrey?logo=modelscope)](https://modelscope.cn/models/openmoss/MOSS-Audio-Tokenizer-Nano) |
-
 ## 许可证
 
 本仓库将遵循根目录中的 `LICENSE` 文件中指定的许可证。如果您在该文件发布前阅读本文档，请将本仓库视为 **未获得重新发布许可**。

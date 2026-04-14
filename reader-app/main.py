@@ -7,17 +7,19 @@ import time
 from pathlib import Path
 
 from PySide6.QtCore import QObject, QProcess, Qt, QTimer, QUrl, Signal
-from PySide6.QtGui import QCloseEvent
+from PySide6.QtGui import QCloseEvent, QIcon, QPixmap
 from PySide6.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
 from PySide6.QtWidgets import (
     QApplication,
     QGridLayout,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QMainWindow,
     QPushButton,
     QPlainTextEdit,
     QSizePolicy,
+    QSpinBox,
     QVBoxLayout,
     QWidget,
 )
@@ -28,9 +30,11 @@ DEFAULT_SERVER_PORT = 5050
 HEALTH_POLL_INTERVAL_MS = 1500
 STOP_TIMEOUT_MS = 4000
 MAX_LOG_LINES = 4000
+HEADER_LOGO_HEIGHT = 40
 
 
 class ServerController(QObject):
+    config_changed = Signal(dict)
     status_changed = Signal(str, str)
     log_received = Signal(str)
     health_changed = Signal(dict)
@@ -43,8 +47,11 @@ class ServerController(QObject):
         self.server_script = repo_root / "server" / "server.py"
         self.server_host = DEFAULT_SERVER_HOST
         self.server_port = DEFAULT_SERVER_PORT
-        self.server_url = f"http://localhost:{self.server_port}"
-        self.health_url = f"{self.server_url}/health"
+        self.checkpoint_path = str((self.repo_root / "models" / "MOSS-TTS-Nano").resolve())
+        self.audio_tokenizer_path = str((self.repo_root / "models" / "MOSS-Audio-Tokenizer-Nano").resolve())
+        self.server_url = ""
+        self.health_url = ""
+        self._refresh_server_urls()
         self.logs_dir = self.reader_app_root / "logs"
         self.logs_dir.mkdir(parents=True, exist_ok=True)
 
@@ -74,6 +81,37 @@ class ServerController(QObject):
         self._last_status = "stopped"
         self._set_status("stopped", "Server stopped.")
 
+    def current_config(self) -> dict:
+        return {
+            "host": self.server_host,
+            "port": self.server_port,
+            "server_url": self.server_url,
+            "health_url": self.health_url,
+            "checkpoint_path": self.checkpoint_path,
+            "audio_tokenizer_path": self.audio_tokenizer_path,
+        }
+
+    def configure_runtime(
+        self,
+        *,
+        port: int | None = None,
+        checkpoint_path: str | None = None,
+        audio_tokenizer_path: str | None = None,
+    ) -> dict:
+        if port is not None:
+            self.server_port = int(port)
+        if checkpoint_path is not None:
+            self.checkpoint_path = str(Path(checkpoint_path).expanduser().resolve())
+        if audio_tokenizer_path is not None:
+            self.audio_tokenizer_path = str(Path(audio_tokenizer_path).expanduser().resolve())
+        self._refresh_server_urls()
+        config = self.current_config()
+        self.config_changed.emit(config)
+        return config
+
+    def report_status(self, state: str, message: str) -> None:
+        self._set_status(state, message)
+
     def start_server(self) -> None:
         if self.is_running():
             return
@@ -91,6 +129,9 @@ class ServerController(QObject):
         self.process.setWorkingDirectory(str(self.repo_root))
         self.process.setProgram(program)
         self.process.setArguments(arguments)
+        self._emit_log_line(f"[reader-app] Starting server on {self.server_url}")
+        self._emit_log_line(f"[reader-app] Checkpoint path: {self.checkpoint_path}")
+        self._emit_log_line(f"[reader-app] Audio tokenizer path: {self.audio_tokenizer_path}")
         self._set_status("starting", "Starting server process...")
         self.process.start()
 
@@ -158,9 +199,17 @@ class ServerController(QObject):
                 self.server_host,
                 "--port",
                 str(self.server_port),
+                "--checkpoint-path",
+                self.checkpoint_path,
+                "--audio-tokenizer-path",
+                self.audio_tokenizer_path,
             ]
         )
         return arguments
+
+    def _refresh_server_urls(self) -> None:
+        self.server_url = f"http://localhost:{self.server_port}"
+        self.health_url = f"{self.server_url}/health"
 
     def _open_log_file(self) -> None:
         self._close_log_file()
@@ -291,6 +340,7 @@ class ReaderAppWindow(QMainWindow):
         super().__init__()
         self.controller = controller
         self.setWindowTitle(APP_TITLE)
+        self._apply_window_icon()
         self.resize(960, 720)
 
         central_widget = QWidget(self)
@@ -318,6 +368,31 @@ class ReaderAppWindow(QMainWindow):
 
         header_layout.addLayout(header_text_layout)
         header_layout.addStretch(1)
+        header_layout.addLayout(self._build_branding_layout())
+
+        config_layout = QGridLayout()
+        config_layout.setHorizontalSpacing(12)
+        config_layout.setVerticalSpacing(8)
+
+        self.server_port_input = QSpinBox()
+        self.server_port_input.setRange(1, 65535)
+        self.server_port_input.setValue(controller.server_port)
+
+        self.checkpoint_path_input = self._make_path_input(controller.checkpoint_path)
+        self.audio_tokenizer_path_input = self._make_path_input(controller.audio_tokenizer_path)
+
+        config_layout.addWidget(QLabel("Server Port"), 0, 0)
+        config_layout.addWidget(self.server_port_input, 0, 1)
+        config_layout.addWidget(QLabel("Checkpoint Path"), 1, 0)
+        config_layout.addWidget(self.checkpoint_path_input, 1, 1)
+        config_layout.addWidget(QLabel("Audio Tokenizer Path"), 2, 0)
+        config_layout.addWidget(self.audio_tokenizer_path_input, 2, 1)
+
+        config_hint_label = QLabel(
+            "Port and model path changes are applied the next time you click Start, Reload Server, or Reload Model."
+        )
+        config_hint_label.setWordWrap(True)
+        config_layout.addWidget(config_hint_label, 3, 0, 1, 2)
 
         button_layout = QHBoxLayout()
         button_layout.setSpacing(8)
@@ -336,6 +411,7 @@ class ReaderAppWindow(QMainWindow):
         button_layout.addWidget(self.clear_logs_button)
 
         root_layout.addLayout(header_layout)
+        root_layout.addLayout(config_layout)
         root_layout.addLayout(button_layout)
 
         info_layout = QGridLayout()
@@ -344,11 +420,8 @@ class ReaderAppWindow(QMainWindow):
 
         self.server_url_value = self._make_value_label(controller.server_url)
         self.health_value = self._make_value_label("Not reachable yet")
-        self.checkpoint_value = self._make_value_label(str((controller.repo_root / "models" / "MOSS-TTS-Nano").resolve()))
-        self.audio_tokenizer_value = self._make_value_label(
-            str((controller.repo_root / "models" / "MOSS-Audio-Tokenizer-Nano").resolve())
-        )
-        self.default_voice_value = self._make_value_label("Unknown")
+        self.checkpoint_value = self._make_value_label(controller.checkpoint_path)
+        self.audio_tokenizer_value = self._make_value_label(controller.audio_tokenizer_path)
         self.text_normalization_value = self._make_value_label("Unknown")
 
         info_layout.addWidget(QLabel("Server URL"), 0, 0)
@@ -359,10 +432,8 @@ class ReaderAppWindow(QMainWindow):
         info_layout.addWidget(self.checkpoint_value, 2, 1)
         info_layout.addWidget(QLabel("Audio Tokenizer Path"), 3, 0)
         info_layout.addWidget(self.audio_tokenizer_value, 3, 1)
-        info_layout.addWidget(QLabel("Default Voice"), 4, 0)
-        info_layout.addWidget(self.default_voice_value, 4, 1)
-        info_layout.addWidget(QLabel("Text Normalization"), 5, 0)
-        info_layout.addWidget(self.text_normalization_value, 5, 1)
+        info_layout.addWidget(QLabel("Text Normalization"), 4, 0)
+        info_layout.addWidget(self.text_normalization_value, 4, 1)
 
         root_layout.addLayout(info_layout)
 
@@ -373,17 +444,19 @@ class ReaderAppWindow(QMainWindow):
         self.log_view.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         root_layout.addWidget(self.log_view, stretch=1)
 
-        self.start_button.clicked.connect(self.controller.start_server)
+        self.start_button.clicked.connect(self._start_server_from_ui)
         self.stop_button.clicked.connect(self.controller.stop_server)
-        self.reload_server_button.clicked.connect(self.controller.restart_server)
-        self.reload_model_button.clicked.connect(self.controller.reload_model)
+        self.reload_server_button.clicked.connect(self._restart_server_from_ui)
+        self.reload_model_button.clicked.connect(self._reload_model_from_ui)
         self.clear_logs_button.clicked.connect(self.log_view.clear)
 
+        self.controller.config_changed.connect(self._on_config_changed)
         self.controller.status_changed.connect(self._on_status_changed)
         self.controller.log_received.connect(self._append_log_line)
         self.controller.health_changed.connect(self._on_health_changed)
         self.controller.running_changed.connect(self._on_running_changed)
 
+        self._apply_runtime_config_to_ui(self.controller.current_config(), update_inputs=True)
         self._on_running_changed(False)
 
     def closeEvent(self, event: QCloseEvent) -> None:
@@ -392,6 +465,49 @@ class ReaderAppWindow(QMainWindow):
 
     def _append_log_line(self, line: str) -> None:
         self.log_view.appendPlainText(line)
+
+    def _sync_controller_config_from_ui(self) -> bool:
+        checkpoint_path = self.checkpoint_path_input.text().strip()
+        audio_tokenizer_path = self.audio_tokenizer_path_input.text().strip()
+        if not checkpoint_path:
+            self.controller.report_status("error", "Checkpoint path is required.")
+            return False
+        if not audio_tokenizer_path:
+            self.controller.report_status("error", "Audio tokenizer path is required.")
+            return False
+        self.controller.configure_runtime(
+            port=self.server_port_input.value(),
+            checkpoint_path=checkpoint_path,
+            audio_tokenizer_path=audio_tokenizer_path,
+        )
+        return True
+
+    def _apply_runtime_config_to_ui(self, config: dict, *, update_inputs: bool) -> None:
+        if update_inputs:
+            self.server_port_input.setValue(int(config["port"]))
+            self.checkpoint_path_input.setText(str(config["checkpoint_path"]))
+            self.audio_tokenizer_path_input.setText(str(config["audio_tokenizer_path"]))
+        self.server_url_value.setText(str(config["server_url"]))
+        self.checkpoint_value.setText(str(config["checkpoint_path"]))
+        self.audio_tokenizer_value.setText(str(config["audio_tokenizer_path"]))
+
+    def _start_server_from_ui(self) -> None:
+        if not self._sync_controller_config_from_ui():
+            return
+        self.controller.start_server()
+
+    def _restart_server_from_ui(self) -> None:
+        if not self._sync_controller_config_from_ui():
+            return
+        self.controller.restart_server()
+
+    def _reload_model_from_ui(self) -> None:
+        if not self._sync_controller_config_from_ui():
+            return
+        self.controller.reload_model()
+
+    def _on_config_changed(self, config: dict) -> None:
+        self._apply_runtime_config_to_ui(config, update_inputs=True)
 
     def _on_status_changed(self, state: str, message: str) -> None:
         self.status_label.setText(state.replace("_", " ").title())
@@ -404,7 +520,6 @@ class ReaderAppWindow(QMainWindow):
         self.audio_tokenizer_value.setText(
             str(payload.get("audio_tokenizer_path") or self.audio_tokenizer_value.text())
         )
-        self.default_voice_value.setText(str(payload.get("default") or payload.get("default_voice") or "Unknown"))
         self.text_normalization_value.setText(str(payload.get("text_normalization_status") or "Unknown"))
 
     def _on_running_changed(self, running: bool) -> None:
@@ -418,6 +533,49 @@ class ReaderAppWindow(QMainWindow):
         label.setWordWrap(True)
         label.setTextInteractionFlags(Qt.TextSelectableByMouse)
         return label
+
+    def _make_path_input(self, text: str) -> QLineEdit:
+        line_edit = QLineEdit(text)
+        line_edit.setClearButtonEnabled(True)
+        return line_edit
+
+    def _build_branding_layout(self) -> QHBoxLayout:
+        branding_layout = QHBoxLayout()
+        branding_layout.setSpacing(10)
+        branding_layout.addWidget(
+            self._make_logo_label(self.controller.reader_app_root / "assets" / "mosi-logo.png", "MOSI")
+        )
+        branding_layout.addWidget(
+            self._make_logo_label(self.controller.reader_app_root / "assets" / "openmoss-logo.png", "OpenMOSS")
+        )
+        return branding_layout
+
+    def _make_logo_label(self, image_path: Path, fallback_text: str) -> QLabel:
+        label = QLabel()
+        label.setAlignment(Qt.AlignCenter)
+        label.setMinimumHeight(HEADER_LOGO_HEIGHT)
+        label.setMaximumHeight(HEADER_LOGO_HEIGHT + 8)
+        label.setText(fallback_text)
+        if image_path.is_file():
+            pixmap = QPixmap(str(image_path))
+            if not pixmap.isNull():
+                scaled = pixmap.scaledToHeight(HEADER_LOGO_HEIGHT, Qt.SmoothTransformation)
+                label.setPixmap(scaled)
+                label.setText("")
+                label.setToolTip(image_path.name)
+        return label
+
+    def _apply_window_icon(self) -> None:
+        icon_path = self.controller.repo_root / "extension" / "icons" / "icon128.png"
+        if not icon_path.is_file():
+            return
+        icon = QIcon(str(icon_path))
+        if icon.isNull():
+            return
+        self.setWindowIcon(icon)
+        app = QApplication.instance()
+        if app is not None:
+            app.setWindowIcon(icon)
 
     def _status_stylesheet(self, state: str) -> str:
         colors = {
@@ -449,7 +607,7 @@ def main() -> int:
     controller = ServerController(repo_root=repo_root)
     window = ReaderAppWindow(controller=controller)
     window.show()
-    QTimer.singleShot(0, controller.start_server)
+    QTimer.singleShot(0, window._start_server_from_ui)
     return app.exec()
 
 

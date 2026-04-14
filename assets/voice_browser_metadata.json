@@ -94,5 +94,17 @@
     "display_name": "JP Togawa",
     "group": "Japanese Female",
     "audio_file": "jp_5.wav"
+  },
+  {
+    "voice": "Anon",
+    "display_name": "JP Anon",
+    "group": "Japanese Female",
+    "audio_file": "jp_6.wav"
+  },
+  {
+    "voice": "Arisa",
+    "display_name": "JP Arisa",
+    "group": "Japanese Female",
+    "audio_file": "jp_7.wav"
   }
 ]

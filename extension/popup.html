@@ -17,6 +17,30 @@
     </header>
 
     <main>
+      <details class="advanced-settings server-connection-settings">
+        <summary>Server Connection</summary>
+        <div class="settings-grid server-settings-grid">
+          <div class="control-group">
+            <label for="server-host">Server Host</label>
+            <select id="server-host">
+              <option value="localhost">localhost</option>
+              <option value="127.0.0.1">127.0.0.1</option>
+            </select>
+          </div>
+          <div class="control-group">
+            <label for="server-port">Server Port</label>
+            <input id="server-port" type="number" min="1" max="65535" step="1" value="5050">
+          </div>
+        </div>
+        <div class="server-settings-actions">
+          <button id="btn-apply-server-config" class="btn-small btn-small-primary" type="button">Apply</button>
+          <button id="btn-reset-server-config" class="btn-small" type="button">Reset Default</button>
+        </div>
+        <p class="settings-hint">
+          Changing the host or port here updates future requests immediately. You do not need to reload the extension.
+        </p>
+      </details>
+
       <!-- Voice Selection -->
       <div class="control-group">
         <div class="label-row">
