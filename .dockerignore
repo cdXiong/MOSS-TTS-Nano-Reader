@@ -1,0 +1,43 @@
+# 排除不需要打包进镜像的文件
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# 模型文件（运行时自动下载，不打包进镜像）
+models/
+*.pt
+*.pth
+*.bin
+*.safetensors
+*.onnx
+
+# 生成的音频
+generated_audio/
+
+# Git 相关
+.git/
+.gitignore
+
+# 开发工具
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 文档图片（可选保留）
+# assets/
+
+# Windows
+Thumbs.db
+desktop.ini
+
+# 临时文件
+*.tmp
+*.log

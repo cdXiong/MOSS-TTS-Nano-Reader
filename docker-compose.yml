@@ -1,0 +1,29 @@
+services:
+  moss-tts-nano:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: moss-tts-nano
+    ports:
+      - "18083:18083"
+    volumes:
+      # 挂载模型缓存目录，避免每次重启都重新下载模型（约 500MB）
+      - moss_tts_models:/app/models
+      # 挂载 HuggingFace 缓存
+      - moss_tts_hf_cache:/root/.cache/huggingface
+      # 挂载音频输出目录，方便从宿主机访问生成结果
+      - ./generated_audio:/app/generated_audio
+    environment:
+      # 如果需要通过代理访问 HuggingFace，取消下面两行注释并填写代理地址
+      # - HF_ENDPOINT=https://hf-mirror.com
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+    # 资源限制（可选）
+    # deploy:
+    #   resources:
+    #     limits:
+    #       memory: 4G
+
+volumes:
+  moss_tts_models:
+  moss_tts_hf_cache:
