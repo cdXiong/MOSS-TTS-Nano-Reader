@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -199,3 +200,8 @@ weights/tts/*.bin
 weights/tts/tokenizer.model
 generated_audio/*
 .app_prompt_uploads/*
+=======
+models/
+reader-app/logs/
+reader-app/__pycache__/
+>>>>>>> 2d9f8a070a4f5ae3af74fd2685b9a7387e90f17c

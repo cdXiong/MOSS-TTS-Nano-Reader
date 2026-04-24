@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nano Reader</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Nano Reader</h1>
+      <div id="server-status" class="status status-checking">
+        <span class="status-dot"></span>
+        <span class="status-text">Checking backend...</span>
+      </div>
+    </header>
+
+    <main>
+      <details class="advanced-settings">
+        <summary>Backend</summary>
+        <div class="settings-grid server-settings-grid">
+          <div class="control-group">
+            <label for="backend-select">Backend</label>
+            <select id="backend-select">
+              <option value="browser_onnx">browser_onnx</option>
+              <option value="server">server</option>
+            </select>
+          </div>
+          <div class="control-group">
+            <label for="browser-model-profile">Browser ONNX Model</label>
+            <select id="browser-model-profile">
+              <option value="fp32">Browser ONNX (FP32, parity-first)</option>
+            </select>
+          </div>
+          <div class="control-group">
+            <label for="browser-model-path">Browser ONNX Model Path</label>
+            <input
+              id="browser-model-path"
+              type="text"
+              spellcheck="false"
+              placeholder="models"
+            >
+          </div>
+        </div>
+        <div class="server-settings-actions">
+          <button id="btn-apply-backend-config" class="btn-small btn-small-primary" type="button">Apply Backend</button>
+          <button id="btn-prepare-browser-backend" class="btn-small" type="button">Load And Prepare</button>
+        </div>
+        <p class="settings-hint">
+          `browser_onnx` is the default backend. `Load And Prepare` preloads the browser runtime in the current tab to avoid first-synthesis model load latency.
+        </p>
+        <p class="settings-hint">
+          The default packaged model path in this build is `models`.
+        </p>
+        <p class="settings-hint">
+          If the packaged model directory is missing, `Load And Prepare` will download the Hugging Face ONNX assets into browser-managed storage automatically and switch the backend to that managed path.
+        </p>
+        <p class="settings-hint">
+          `Read Page`, `Reload Voices`, and `Save Voice` now reuse the same auto-download path, so you no longer need to click `Load And Prepare` first just to fetch missing models.
+        </p>
+        <p class="settings-hint">
+          Packaged extension models and browser-managed downloads do not require `Allow access to file URLs`. Only manually entered external local file paths need that permission.
+        </p>
+      </details>
+
+      <details class="advanced-settings">
+        <summary>Browser ONNX PoC</summary>
+        <div class="server-settings-actions">
+          <button id="btn-open-browser-poc" class="btn-small btn-small-primary" type="button">Open Browser PoC</button>
+        </div>
+        <p class="settings-hint">
+          This opens the CPU-only browser ONNX page. It supports built-in voices, uploaded voices, editable text, and warm-up loading without the Python server.
+        </p>
+      </details>
+
+      <details class="advanced-settings server-connection-settings">
+        <summary>Server Connection</summary>
+        <div class="settings-grid server-settings-grid">
+          <div class="control-group">
+            <label for="server-host">Server Host</label>
+            <select id="server-host">
+              <option value="localhost">localhost</option>
+              <option value="127.0.0.1">127.0.0.1</option>
+            </select>
+          </div>
+          <div class="control-group">
+            <label for="server-port">Server Port</label>
+            <input id="server-port" type="number" min="1" max="65535" step="1" value="5050">
+          </div>
+        </div>
+        <div class="server-settings-actions">
+          <button id="btn-apply-server-config" class="btn-small btn-small-primary" type="button">Apply</button>
+          <button id="btn-reset-server-config" class="btn-small" type="button">Reset Default</button>
+        </div>
+        <p class="settings-hint">
+          Changing the host or port here updates future requests immediately. You do not need to reload the extension.
+        </p>
+      </details>
+
+      <!-- Voice Selection -->
+      <div class="control-group">
+        <div class="label-row">
+          <label for="voice-select">Voice</label>
+          <div class="label-actions">
+            <button id="btn-reload-voices" class="btn-small" type="button">Reload Voices</button>
+            <button id="btn-toggle-add-voice" class="btn-small" type="button">Add Voice</button>
+          </div>
+        </div>
+        <select id="voice-select">
+          <optgroup label="Chinese Male">
+            <option value="Junhao">Junhao</option>
+            <option value="Zhiming">Zhiming</option>
+            <option value="Weiguo">Weiguo</option>
+          </optgroup>
+          <optgroup label="Chinese Female">
+            <option value="Xiaoyu">Xiaoyu</option>
+            <option value="Yuewen">Yuewen</option>
+            <option value="Lingyu">Lingyu</option>
+          </optgroup>
+          <optgroup label="English">
+            <option value="Trump">Trump</option>
+            <option value="Ava">Ava</option>
+            <option value="Bella">Bella</option>
+            <option value="Adam">Adam</option>
+            <option value="Nathan">Nathan</option>
+          </optgroup>
+          <optgroup label="Japanese Female">
+            <option value="Sakura">Sakura</option>
+            <option value="Yui">Yui</option>
+            <option value="Aoi">Aoi</option>
+            <option value="Hina">Hina</option>
+            <option value="Mei">Mei</option>
+          </optgroup>
+        </select>
+      </div>
+
+      <div id="add-voice-panel" class="voice-upload-panel hidden">
+        <div class="control-group">
+          <label for="new-voice-name">Display Name</label>
+          <input id="new-voice-name" type="text" maxlength="80" placeholder="My Voice">
+        </div>
+        <div class="control-group">
+          <label for="new-voice-group-select">Group</label>
+          <select id="new-voice-group-select"></select>
+          <input
+            id="new-voice-group-custom"
+            class="group-custom-input hidden"
+            type="text"
+            maxlength="80"
+            placeholder="Create a new group"
+          >
+        </div>
+        <div class="control-group">
+          <label for="new-voice-file">Prompt Audio</label>
+          <input id="new-voice-file" type="file" accept=".wav,.mp3,.flac,.ogg,.m4a,audio/*">
+        </div>
+        <div class="voice-upload-actions">
+          <button id="btn-save-voice" class="btn-small btn-small-primary" type="button">Save Voice</button>
+          <button id="btn-cancel-add-voice" class="btn-small" type="button">Cancel</button>
+        </div>
+        <p class="settings-hint">
+          In `browser_onnx` mode, the uploaded prompt audio is encoded locally in the browser and stored in extension storage.
+          In `server` mode, it is uploaded to the Python server like before.
+        </p>
+      </div>
+
+      <!-- Playback Speed Control -->
+      <div id="playback-speed-group" class="control-group">
+        <label for="speed-control">Playback Speed: <span id="speed-value">1.0x</span></label>
+        <input type="range" id="speed-control" min="0.5" max="2.0" step="0.1" value="1.0">
+      </div>
+
+      <details class="advanced-settings">
+        <summary>Generation Options</summary>
+        <div class="settings-grid">
+          <div class="control-group">
+            <label for="sample-mode">Sampling Mode</label>
+            <select id="sample-mode">
+              <option value="fixed">Fixed Sampled Frame (Default)</option>
+              <option value="full">Sample Full</option>
+            </select>
+          </div>
+          <div class="control-group checkbox-group">
+            <label class="checkbox-label" for="realtime-streaming-decode">
+              <input id="realtime-streaming-decode" type="checkbox" checked>
+              <span>Realtime Streaming Decode</span>
+            </label>
+          </div>
+          <div class="control-group checkbox-group">
+            <label class="checkbox-label" for="wetext-processing-enabled">
+              <input id="wetext-processing-enabled" type="checkbox" checked>
+              <span>Enable WeTextProcessing</span>
+            </label>
+          </div>
+          <div class="control-group checkbox-group">
+            <label class="checkbox-label" for="normalize-tts-text-enabled">
+              <input id="normalize-tts-text-enabled" type="checkbox" checked>
+              <span>Enable normalize_tts_text</span>
+            </label>
+          </div>
+          <div class="control-group">
+            <label for="initial-playback-delay">Initial Playback Delay (s)</label>
+            <input id="initial-playback-delay" type="number" min="0" step="0.01" value="0.08">
+          </div>
+          <div class="control-group">
+            <label for="cpu-threads">CPU Threads (0=auto)</label>
+            <input id="cpu-threads" type="number" min="0" step="1" value="4">
+          </div>
+          <div class="control-group">
+            <label for="attn-implementation">Attention Backend</label>
+            <select id="attn-implementation">
+              <option value="model_default">model_default</option>
+              <option value="sdpa">sdpa</option>
+              <option value="eager">eager</option>
+            </select>
+          </div>
+          <div class="control-group">
+            <label for="voice-clone-max-text-tokens">Voice Clone Max Text Tokens</label>
+            <input id="voice-clone-max-text-tokens" type="number" min="25" step="1" value="75">
+          </div>
+          <div class="control-group">
+            <label for="tts-max-batch-size">Max TTS Batch Size (0=auto)</label>
+            <input id="tts-max-batch-size" type="number" min="0" step="1" value="1">
+          </div>
+          <div class="control-group">
+            <label for="codec-max-batch-size">Max Codec Batch Size (0=auto)</label>
+            <input id="codec-max-batch-size" type="number" min="0" step="1" value="0">
+          </div>
+        </div>
+        <p class="settings-hint">
+          Max TTS Batch Size defaults to 1 in this build. Set it to 0 to re-enable auto batching.
+          Buffered generation keeps chunk order and decodes codec sub-batches no larger than the current TTS batch.
+          Realtime mode keeps output order and uses the smallest active chunk-group width among auto batching, Max TTS Batch Size, and Max Codec Batch Size.
+        </p>
+        <p class="settings-hint">
+          This app is CPU-only. CPU Threads maps to `torch.set_num_threads` for that request. It defaults to 4, and 0 means auto using the server default thread count.
+        </p>
+        <p class="settings-hint">
+          CPU Attention Backend options are synchronized with the official CPU-only app: `model_default`, `sdpa`, and `eager`.
+          On CPU, `model_default` currently resolves to `eager`.
+        </p>
+        <p class="settings-hint">
+          Under the <code>browser_onnx</code> backend, <code>Enable WeTextProcessing</code> is still not executable today.
+          The cached <code>.fst</code> files can be reused as assets, but browser inference still needs a browser-side OpenFst/WeText runtime before those graphs can actually run.
+        </p>
+        <p class="settings-hint">
+          Under the <code>server</code> backend, both sampled modes still map to regular <code>do_sample=true</code>.
+          The extra sampled-mode split is only implemented by the <code>browser_onnx</code> runtime.
+        </p>
+        <p class="settings-hint">
+          <code>Fixed Sampled Frame</code> runs a dedicated browser ONNX fast path with host-provided random numbers and graph-internal sampling.
+          Its fixed sampling hyperparameters are: text temp 1.0 / top-p 1.0 / top-k 50, audio temp 0.8 / top-p 0.95 / top-k 25 / repetition penalty 1.2.
+        </p>
+        <p class="settings-hint">
+          When <code>Enable normalize_tts_text</code> is checked, extracted paragraph text is still normalized again before
+          it is sent into browser ONNX inference.
+        </p>
+      </details>
+
+      <!-- Start Position Selection -->
+      <div class="control-group" id="start-position-group">
+        <label for="start-position">Start from</label>
+        <select id="start-position" disabled>
+          <option value="0">Beginning</option>
+        </select>
+        <button id="btn-scan" class="btn-small" title="Scan page for paragraphs">Scan</button>
+      </div>
+
+      <div class="control-group" id="now-reading-group">
+        <label for="now-reading-value">Now Reading</label>
+        <div id="now-reading-value" class="readonly-panel is-placeholder">No active paragraph.</div>
+      </div>
+
+      <div class="control-group" id="prepared-text-group">
+        <label for="prepared-text-value">Prepared Text</label>
+        <div id="prepared-text-meta" class="settings-hint">No prepared text yet.</div>
+        <div id="prepared-text-value" class="readonly-panel is-placeholder">No prepared text yet.</div>
+      </div>
+
+      <!-- Reading Time Estimate -->
+      <div id="reading-time" class="reading-time hidden">
+        <span id="reading-time-value"></span>
+      </div>
+
+      <!-- Playback Controls -->
+      <div class="playback-controls">
+        <button id="btn-read" class="btn btn-primary" disabled>
+          <span class="icon icon-play"></span>
+          Read Page
+        </button>
+        <button id="btn-pause" class="btn btn-secondary" disabled>
+          <span class="icon icon-pause"></span>
+          Pause
+        </button>
+        <button id="btn-stop" class="btn btn-secondary" disabled>
+          <span class="icon icon-stop"></span>
+          Stop
+        </button>
+      </div>
+
+      <!-- Progress -->
+      <div id="progress-container" class="progress-container hidden">
+        <div class="progress-bar">
+          <div id="progress-fill" class="progress-fill"></div>
+        </div>
+        <div id="progress-text" class="progress-text">Preparing...</div>
+      </div>
+
+      <!-- Status Messages -->
+      <div id="message" class="message hidden"></div>
+    </main>
+
+    <footer>
+      <p class="footer-text">Powered by <a href="https://github.com/OpenMOSS/MOSS-TTS-Nano" target="_blank">MOSS-TTS-Nano</a></p>
+    </footer>
+  </div>
+
+  <script src="browser_model_store.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

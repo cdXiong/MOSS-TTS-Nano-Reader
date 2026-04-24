@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 # MOSS-TTS-Nano
+=======
+# MOSS-TTS-Nano Reader
+>>>>>>> 2d9f8a070a4f5ae3af74fd2685b9a7387e90f17c
 
 <br>
 
@@ -11,10 +15,16 @@
 <div align="center">
   <a href="https://clawhub.ai/luogao2333/moss-tts-voice"><img src="https://img.shields.io/badge/🦞_OpenClaw-Skills-8A2BE2" alt="OpenClaw"></a>
   <a href="https://huggingface.co/OpenMOSS-Team/MOSS-TTS-Nano"><img src="https://img.shields.io/badge/Huggingface-Models-orange?logo=huggingface&amp"></a>
+<<<<<<< HEAD
   <a href="https://modelscope.cn/models/openmoss/MOSS-TTS-Nano"><img src="https://img.shields.io/badge/ModelScope-Models-7B61FF?logo=modelscope&amp;logoColor=white"></a>
   <a href="https://openmoss.github.io/MOSS-TTS-Nano-Demo/"><img src="https://img.shields.io/badge/Blog-View-blue?logo=internet-explorer&amp"></a>
   <a href="https://arxiv.org/abs/2603.18090"><img src="https://img.shields.io/badge/Arxiv-2603.18090-red?logo=arxiv&amp"></a>
 
+=======
+  <a href="https://modelscope.cn/collections/OpenMOSS-Team/MOSS-TTS-Nano"><img src="https://img.shields.io/badge/ModelScope-Models-lightgrey?logo=modelscope&amp"></a>
+  <a href="https://mosi.cn/#models"><img src="https://img.shields.io/badge/Blog-View-blue?logo=internet-explorer&amp"></a>
+  <a href="https://arxiv.org/abs/2603.18090"><img src="https://img.shields.io/badge/Arxiv-2603.18090-red?logo=arxiv&amp"></a>
+>>>>>>> 2d9f8a070a4f5ae3af74fd2685b9a7387e90f17c
   <a href="https://studio.mosi.cn/experiments/moss-tts-nano"><img src="https://img.shields.io/badge/AIStudio-Try-green?logo=internet-explorer&amp"></a>
   <a href="https://studio.mosi.cn/docs/moss-tts-nano"><img src="https://img.shields.io/badge/API-Docs-00A3FF?logo=fastapi&amp"></a>
   <a href="https://x.com/Open_MOSS"><img src="https://img.shields.io/badge/Twitter-Follow-black?logo=x&amp"></a>
@@ -24,6 +34,7 @@
 
 [English](README.md) | [简体中文](README_zh.md)
 
+<<<<<<< HEAD
 
 
 MOSS-TTS-Nano is an open-source **multilingual tiny speech generation model** from [MOSI.AI](https://mosi.cn/#hero) and the [OpenMOSS team](https://www.open-moss.com/). With only **0.1B parameters**, it is designed for **realtime speech generation**, can run directly on **CPU without a GPU**, and keeps the deployment stack simple enough for local demos, web serving, and lightweight product integration.
@@ -41,15 +52,39 @@ MOSS-TTS-Nano is an open-source **multilingual tiny speech generation model** fr
 
 - Online Demo: [https://openmoss.github.io/MOSS-TTS-Nano-Demo/](https://openmoss.github.io/MOSS-TTS-Nano-Demo/)
 - Hugging Face Space: [OpenMOSS-Team/MOSS-TTS-Nano](https://huggingface.co/spaces/OpenMOSS-Team/MOSS-TTS-Nano)
+=======
+MOSS-TTS-Nano Reader is a local browser webpage reading application built on [MOSS-TTS-Nano](https://github.com/OpenMOSS/MOSS-TTS-Nano).
+
+## News
+
+* 2026.4.14: We release **Nano Reader**, a browser-focused local reading integration on top of **MOSS-TTS-Nano**.
+* 2026.4.10: We release **MOSS-TTS-Nano**. A demo Space is available at [OpenMOSS-Team/MOSS-TTS-Nano](https://huggingface.co/spaces/OpenMOSS-Team/MOSS-TTS-Nano). You can also view the demo and more details at [openmoss.github.io/MOSS-TTS-Nano-Demo/](https://openmoss.github.io/MOSS-TTS-Nano-Demo/).
+
+## Quick Install
+
+Thanks to the efficient performance improvements of the newly released ONNX version of [MOSS-TTS-Nano](https://github.com/OpenMOSS/MOSS-TTS-Nano), we can now migrate the whole project and model stack directly into the browser, removing the need to start an extra local service.
+
+Here is a quick usage overview:
+
+1. Load `MOSS-TTS-Nano-Reader/extension` directly as the browser extension.
+2. It is recommended to pre-download [MOSS-Audio-Tokenizer-Nano-ONNX](https://huggingface.co/OpenMOSS-Team/MOSS-Audio-Tokenizer-Nano-ONNX) and [MOSS-TTS-Nano-100M-ONNX](https://huggingface.co/OpenMOSS-Team/MOSS-TTS-Nano-100M-ONNX) into `MOSS-TTS-Nano-Reader\extension_test\models`.
+3. If the models are not prepared yet, open the extension's Browser ONNX PoC and click `Load And Prepare` to start downloading automatically.
+4. Once loading succeeds, the extension is ready to use.
+>>>>>>> 2d9f8a070a4f5ae3af74fd2685b9a7387e90f17c
 
 ## Contents
 
 - [News](#news)
+<<<<<<< HEAD
 - [Demo](#demo)
+=======
+- [Quick Install](#quick-install)
+>>>>>>> 2d9f8a070a4f5ae3af74fd2685b9a7387e90f17c
 - [Introduction](#introduction)
   - [Main Features](#main-features)
 - [Supported Languages](#supported-languages)
 - [Quickstart](#quickstart)
+<<<<<<< HEAD
   - [Environment Setup](#environment-setup)
   - [Voice Clone with `infer.py`](#voice-clone-with-inferpy)
   - [Local Web Demo with `app.py`](#local-web-demo-with-apppy)
@@ -62,6 +97,20 @@ MOSS-TTS-Nano is an open-source **multilingual tiny speech generation model** fr
 - [License](#license)
 - [Citation](#citation)
 - [Star History](#star-history)
+=======
+  - [Get The Repository](#get-the-repository)
+  - [Environment Setup](#environment-setup)
+  - [Prepare The Project Layout](#prepare-the-project-layout)
+  - [Start Nano Reader Locally](#start-nano-reader-locally)
+    - [Start The Desktop Reader App](#start-the-desktop-reader-app)
+    - [Start The Command-Line Nano Reader Service](#start-the-command-line-nano-reader-service)
+  - [Load The Chrome Extension](#load-the-chrome-extension)
+  - [Read A Page In The Browser](#read-a-page-in-the-browser)
+- [Usage Notes](#usage-notes)
+- [Acknowledgements](#acknowledgements)
+- [License](#license)
+- [Citation](#citation)
+>>>>>>> 2d9f8a070a4f5ae3af74fd2685b9a7387e90f17c
 
 ## Introduction
 
@@ -69,6 +118,7 @@ MOSS-TTS-Nano is an open-source **multilingual tiny speech generation model** fr
   <img src="./assets/images/concept.png" alt="MOSS-TTS-Nano concept" width="85%" />
 </p>
 
+<<<<<<< HEAD
 MOSS-TTS-Nano focuses on the part of TTS deployment that matters most in practice: **small footprint**, **low latency**, **good enough quality for realtime products**, and **simple local setup**. It uses a pure autoregressive **Audio Tokenizer + LLM** pipeline and keeps the inference workflow friendly for both terminal users and web-demo users.
 
 ### Main Features
@@ -87,6 +137,16 @@ MOSS-TTS-Nano focuses on the part of TTS deployment that matters most in practic
   <br />
   Architecture of MOSS-TTS-Nano
 </p>
+=======
+Nano Reader is a lightweight browser reading tool built on top of `MOSS-TTS-Nano`. It focuses on low-latency local webpage reading with a simple extension + local server workflow.
+
+### Main Features
+
+- **Ultra-low-latency webpage reading**
+- **Pure CPU inference**
+- **Chrome / Edge extension support**
+- **Freely add custom voices**
+>>>>>>> 2d9f8a070a4f5ae3af74fd2685b9a7387e90f17c
 
 ## Supported Languages
 
@@ -104,6 +164,7 @@ MOSS-TTS-Nano currently supports **20 languages**:
 
 ## Quickstart
 
+<<<<<<< HEAD
 ### Environment Setup
 
 We recommend a clean Python environment first, then installing the project in editable mode so the `moss-tts-nano` command becomes available locally.
@@ -126,10 +187,72 @@ pip install -e .
 If `WeTextProcessing` or `pynini` fails to install from `requirements.txt`, install `pynini` first in the same environment, then install `WeTextProcessing`, remove `WeTextProcessing` from `requirements.txt`, and finally rerun `pip install -r requirements.txt`.
 
 With Conda, we recommend:
+=======
+The recommended workflow is: start a local Nano Reader inference service first, either with `reader-app` or the command-line service, and then use the browser extension directly for webpage playback. We also plan to provide ready-to-use packaged builds through [Releases](https://github.com/OpenMOSS/MOSS-TTS-Nano-Reader/releases) so they can work out of the box together with the browser extension.
+
+### Get The Repository
+
+Nano Reader now tracks `MOSS-TTS-Nano` as a git submodule.
+
+For a fresh clone of this repository, clone it with submodules:
+
+```bash
+git clone --recurse-submodules https://github.com/OpenMOSS/MOSS-TTS-Nano-Reader.git
+```
+
+If you already cloned Nano Reader without submodules, initialize and fetch them with:
+
+```bash
+cd MOSS-TTS-Nano-Reader
+git submodule update --init --recursive
+```
+
+### Environment Setup
+
+We recommend a clean Python environment first, then installing the Nano Reader server dependencies locally. The default release layout expects the repository checkout and model snapshots to live inside the `MOSS-TTS-Nano-Reader` root.
+
+#### One-Command Installation
+
+Use this if you want the shortest setup path.
+
+```bash
+cd MOSS-TTS-Nano-Reader
+conda env create -f environment.yml
+conda activate nano-reader
+```
+
+This single command installs:
+
+- the editable local server package from `./server`
+- `pynini`
+- `WeTextProcessing`
+
+If you later update `environment.yml`, refresh the environment with:
+
+```bash
+cd MOSS-TTS-Nano-Reader
+conda env update -f environment.yml --prune
+```
+
+#### Step-by-Step Installation
+
+Use this if you prefer to install each dependency manually or need to troubleshoot one part at a time.
+
+```bash
+conda create -n nano-reader python=3.12 -y
+conda activate nano-reader
+
+cd MOSS-TTS-Nano-Reader/server
+pip install -e .
+```
+
+If `WeTextProcessing` is needed for the popup normalization switches and fails to install directly, install its extra dependencies in the same environment:
+>>>>>>> 2d9f8a070a4f5ae3af74fd2685b9a7387e90f17c
 
 ```bash
 conda install -c conda-forge pynini=2.1.6.post1 -y
 pip install git+https://github.com/WhizZest/WeTextProcessing.git
+<<<<<<< HEAD
 pip install -r requirements.txt
 ```
 
@@ -314,6 +437,136 @@ The family currently includes:
 | **MOSS-VoiceGenerator** | `MossTTSDelay` | 1.7B | [![Hugging Face](https://img.shields.io/badge/Huggingface-Model-orange?logo=huggingface)](https://huggingface.co/OpenMOSS-Team/MOSS-VoiceGenerator) | [![ModelScope](https://img.shields.io/badge/ModelScope-Model-7B61FF?logo=modelscope&logoColor=white)](https://modelscope.cn/models/openmoss/MOSS-VoiceGenerator) |
 | **MOSS-SoundEffect** | `MossTTSDelay` | 8B | [![Hugging Face](https://img.shields.io/badge/Huggingface-Model-orange?logo=huggingface)](https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect) | [![ModelScope](https://img.shields.io/badge/ModelScope-Model-7B61FF?logo=modelscope&logoColor=white)](https://modelscope.cn/models/openmoss/MOSS-SoundEffect) |
 | **MOSS-TTS-Realtime** | `MossTTSRealtime` | 1.7B | [![Hugging Face](https://img.shields.io/badge/Huggingface-Model-orange?logo=huggingface)](https://huggingface.co/OpenMOSS-Team/MOSS-TTS-Realtime) | [![ModelScope](https://img.shields.io/badge/ModelScope-Model-7B61FF?logo=modelscope&logoColor=white)](https://modelscope.cn/models/openmoss/MOSS-TTS-Realtime) |
+=======
+```
+
+### Prepare The Project Layout
+
+Nano Reader defaults to the following fixed layout:
+
+- Nano-TTS repo: `MOSS-TTS-Nano-Reader/MOSS-TTS-Nano`
+- Checkpoint: `MOSS-TTS-Nano-Reader/models/MOSS-TTS-Nano`
+- Audio tokenizer: `MOSS-TTS-Nano-Reader/models/MOSS-Audio-Tokenizer-Nano`
+
+Download model weights from Hugging Face into the default local directories:
+
+```bash
+mkdir -p models
+huggingface-cli download OpenMOSS-Team/MOSS-TTS-Nano --local-dir models/MOSS-TTS-Nano
+huggingface-cli download OpenMOSS-Team/MOSS-Audio-Tokenizer-Nano --local-dir models/MOSS-Audio-Tokenizer-Nano
+```
+
+If you prefer custom paths, you can still override the defaults with CLI arguments or environment variables when starting the server.
+
+### Start Nano Reader Locally
+
+#### Start The Desktop Reader App
+
+Use `reader-app` if you want a desktop window to start and manage the local service:
+
+```bash
+cd MOSS-TTS-Nano-Reader
+python reader-app/main.py
+```
+
+The current `reader-app` can:
+
+- start, stop, and restart the local server
+- show live startup and runtime logs
+- change `Server Port`
+- set `Checkpoint Path` and `Audio Tokenizer Path` to load models from specific paths
+
+A packaged `reader-app` build for supported platforms can be downloaded from [Releases](https://github.com/OpenMOSS/MOSS-TTS-Nano-Reader/releases). Reader App automatically downloads model weights to the default paths.
+
+If you use a non-default port in `reader-app`, update the same host and port in the extension popup under `Server Connection`.
+
+#### Start The Command-Line Nano Reader Service
+
+Use this mode if you prefer to run the local Flask server directly from the command line:
+
+```bash
+cd MOSS-TTS-Nano-Reader/server
+python server.py
+```
+
+By default, the server will:
+
+- load `../MOSS-TTS-Nano`
+- load `../models/MOSS-TTS-Nano`
+- load `../models/MOSS-Audio-Tokenizer-Nano`
+- run in **CPU-only** mode
+- listen on `http://localhost:5050`
+- exit early with a clear error if the default repo or model directories are missing
+
+Use a different port:
+
+```bash
+python server.py --port 6060
+```
+
+Equivalent environment-variable launch:
+
+```bash
+export NANO_TTS_PORT=6060
+python server.py
+```
+
+Important:
+
+- The browser extension uses `http://localhost:5050` by default
+- If you change the port, open the extension popup, expand `Server Connection`, set the same host and port, then click `Apply`
+
+Optional custom-path launch:
+
+```bash
+python server.py \
+  --nano-tts-repo-path /path/to/MOSS-TTS-Nano \
+  --checkpoint-path /path/to/models/MOSS-TTS-Nano \
+  --audio-tokenizer-path /path/to/models/MOSS-Audio-Tokenizer-Nano \
+```
+
+Equivalent environment-variable launch for custom model paths:
+
+```bash
+export NANO_TTS_REPO_PATH=/path/to/MOSS-TTS-Nano
+export NANO_TTS_CHECKPOINT_PATH=/path/to/models/MOSS-TTS-Nano
+export NANO_TTS_AUDIO_TOKENIZER_PATH=/path/to/models/MOSS-Audio-Tokenizer-Nano
+python server.py
+```
+
+### Load The Chrome Extension
+
+1. Open Chrome and go to `chrome://extensions/`
+2. Enable `Developer mode`
+3. Click `Load unpacked`
+4. Select the `MOSS-TTS-Nano-Reader/extension` folder
+
+### Read A Page In The Browser
+
+1. Make sure `server.py` or `reader-app` is already running
+2. Open a webpage you want to read
+3. Click the Nano Reader extension icon
+4. Click `Scan` to extract readable paragraphs
+5. Choose the start paragraph from `Start from`
+6. Select a voice from the popup
+7. If needed, expand `Server Connection` and confirm the host and port match the running local service
+8. Keep `Enable WeTextProcessing` and `Enable normalize_tts_text` enabled unless you explicitly want raw text
+9. Click `Read Page`
+
+## Usage Notes
+
+- After the server starts, you can check whether it is ready through `/health`, for example `http://localhost:5050/health` by default.
+- `Realtime Streaming Decode` is enabled by default for low-latency playback. If you turn it off, the extension waits until the full audio segment is generated before playback starts.
+- If playback feels choppy, try increasing `CPU Threads`, or close other CPU-heavy programs.
+- `Initial Playback Delay (s)` controls how long the player waits before starting the first audio frame. A slightly larger value lets the model generate more audio before playback begins.
+- `Enable WeTextProcessing` enables WeTextProcessing-based text normalization. If some symbols are spoken in an unexpected way, try turning it off.
+- You can use `Add Voice` to add custom voices. Added voices remain in the selector until you remove their entries from `assets/voice_browser_metadata.json`.
+
+## Acknowledgements
+
+- Nano Reader is built on top of [**MOSS-TTS-Nano**](https://github.com/OpenMOSS/MOSS-TTS-Nano) and [**MOSS-Audio-Tokenizer-Nano**](https://huggingface.co/OpenMOSS-Team/MOSS-Audio-Tokenizer-Nano) from the OpenMOSS team.
+- The browser-reader skeleton and original interaction flow were adapted from [lukasmwerner/pocket-reader](https://github.com/lukasmwerner/pocket-reader.git). We thank the original author for open-sourcing that project structure.
+>>>>>>> 2d9f8a070a4f5ae3af74fd2685b9a7387e90f17c
 
 ## License
 
@@ -347,12 +600,17 @@ If you use the MOSS-TTS work in your research or product, please cite:
 
 ```bibtex
 @misc{gong2026mossaudiotokenizerscalingaudiotokenizers,
+<<<<<<< HEAD
   title={MOSS-Audio-Tokenizer: Scaling Audio Tokenizers for Future Audio Foundation Models}, 
+=======
+  title={MOSS-Audio-Tokenizer: Scaling Audio Tokenizers for Future Audio Foundation Models},
+>>>>>>> 2d9f8a070a4f5ae3af74fd2685b9a7387e90f17c
   author={Yitian Gong and Kuangwei Chen and Zhaoye Fei and Xiaogui Yang and Ke Chen and Yang Wang and Kexin Huang and Mingshu Chen and Ruixiao Li and Qingyuan Cheng and Shimin Li and Xipeng Qiu},
   year={2026},
   eprint={2602.10934},
   archivePrefix={arXiv},
   primaryClass={cs.SD},
+<<<<<<< HEAD
   url={https://arxiv.org/abs/2602.10934}, 
 }
 ```
@@ -360,3 +618,8 @@ If you use the MOSS-TTS work in your research or product, please cite:
 ## Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=OpenMOSS/MOSS-TTS-Nano&type=Date)](https://star-history.com/#OpenMOSS/MOSS-TTS-Nano&Date)
+=======
+  url={https://arxiv.org/abs/2602.10934}
+}
+```
+>>>>>>> 2d9f8a070a4f5ae3af74fd2685b9a7387e90f17c
